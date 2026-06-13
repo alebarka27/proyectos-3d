@@ -259,7 +259,7 @@ app.delete('/api/ventas/:id', async (req, res) => {
     }
 });
 
-app.get('*', (req, res) => {
+app.use((req, res) => {
     const indexPath = path.join(__dirname, '..', 'public', 'index.html');
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
