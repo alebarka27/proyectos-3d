@@ -13,7 +13,7 @@
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
-        "express": "^5.2.1",
-        "pg": "^8.13.3"
+        "@vercel/postgres": "^0.10.0",
+        "express": "^5.2.1"
     }
 }
