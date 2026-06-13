@@ -91,8 +91,12 @@ async function initDB() {
                 }
             }
 
-            fs.renameSync(dbPath, dbPath + '.bak');
-            console.log('proyectos.json migrado a Postgres y renombrado a proyectos.json.bak');
+            try {
+                fs.renameSync(dbPath, dbPath + '.bak');
+                console.log('proyectos.json migrado a Postgres y renombrado a proyectos.json.bak');
+            } catch (e) {
+                console.log('Migracion completada (no se pudo renombrar backup, filesystem read-only)');
+            }
         }
     } catch (err) {
         console.error('initDB error:', err.message);
