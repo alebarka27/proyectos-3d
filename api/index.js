@@ -18,7 +18,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const COOKIE_NAME = 'session';
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
-const PUBLIC_PATHS = new Set(['/login.html', '/login.js', '/style.css', '/app.js', '/api/login', '/api/logout']);
+const PUBLIC_PATHS = new Set(['/login.html', '/login.js', '/style.css', '/app.js', '/api/login', '/api/logout', '/tommy']);
 
 function sign(value) {
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
@@ -131,6 +131,10 @@ const publicDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
 }
+
+app.get('/tommy', (req, res) => {
+    res.sendFile(path.join(publicDir, 'tommy.html'));
+});
 
 let dbReady = false;
 let dbInitPromise = null;
