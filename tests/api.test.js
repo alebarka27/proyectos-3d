@@ -39,6 +39,21 @@ test('GET /login.html es publico', async () => {
     assert.strictEqual(res.status, 200);
 });
 
+test('GET /eshop es publico', async () => {
+    const res = await fetch(`${baseUrl}/eshop`);
+    assert.strictEqual(res.status, 200);
+});
+
+test('GET /eshop.js es publico', async () => {
+    const res = await fetch(`${baseUrl}/eshop.js`);
+    assert.strictEqual(res.status, 200);
+});
+
+test('GET /api/eshop sin sesion no devuelve 401', async () => {
+    const res = await fetch(`${baseUrl}/api/eshop`);
+    assert.notStrictEqual(res.status, 401);
+});
+
 test('POST /api/login con password incorrecta devuelve 401', async () => {
     const res = await fetch(`${baseUrl}/api/login`, {
         method: 'POST',

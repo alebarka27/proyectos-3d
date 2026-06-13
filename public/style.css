@@ -127,6 +127,8 @@ h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 .modal h2 { margin-bottom: 20px; font-size: 17px; font-weight: 600; letter-spacing: .2px; }
 
 #projectForm label { display: block; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+#projectForm label.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+#projectForm label.checkbox-label input { width: auto; margin: 0; }
 #projectForm input, #projectForm select { width: 100%; padding: 10px 12px; margin-top: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); transition: border-color .15s; }
 #projectForm input:focus, #projectForm select:focus { outline: none; border-color: var(--border-strong); }
 #projectForm input:focus-visible, #projectForm select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -194,6 +196,47 @@ td a:hover { text-decoration: underline; }
 #loginForm input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #loginForm .btn-primary { width: 100%; padding: 11px; font-size: 14px; }
 .login-error { color: var(--danger); font-size: 13px; margin-top: 14px; }
+
+/* --- Eshop --- */
+
+.eshop-body { min-height: 100dvh; padding: 40px 24px 60px; }
+.eshop-header { max-width: 1200px; margin: 0 auto 36px; text-align: center; }
+.eshop-brand { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -.2px; margin-bottom: 8px; }
+.eshop-sub { color: var(--text-dim); font-size: 14px; text-wrap: balance; }
+
+.eshop-main { max-width: 1200px; margin: 0 auto; }
+.eshop-estado { text-align: center; color: var(--text-dim); padding: 60px 0; font-size: 14px; }
+
+.eshop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+
+.product-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s, transform .2s; }
+.product-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+
+.product-img { aspect-ratio: 1; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.product-img img { width: 100%; height: 100%; object-fit: cover; }
+.product-img-placeholder { font-size: 40px; opacity: .4; }
+
+.product-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.product-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; text-wrap: balance; }
+
+.btn-whatsapp {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #25d366;
+    color: #07140d;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .15s, transform .1s;
+}
+.btn-whatsapp:hover { background: #2ee578; }
+.btn-whatsapp:active { transform: scale(.98); }
+.btn-whatsapp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* --- Responsive (used via ngrok on phone) --- */
 

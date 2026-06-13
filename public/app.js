@@ -84,6 +84,7 @@ function renderTabla() {
                 <td data-label="Vend.">${vend || '-'}</td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
+                <td data-label="Eshop">${p.publicareshop ? '🛍️' : '-'}</td>
                 <td data-label="Acciones">
                     <button class="btn-sm" onclick="editar('${p.id}')">✏️</button>
                     <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">🗑️</button>
@@ -124,6 +125,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         vendidos: document.getElementById('vendidos').value,
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
+        publicarEshop: document.getElementById('publicarEshop').checked,
     };
     const url = id ? `${API_PROY}/${id}` : API_PROY;
     const method = id ? 'PUT' : 'POST';
@@ -147,6 +149,7 @@ async function editar(id) {
     document.getElementById('vendidos').value = p.vendidos || '';
     document.getElementById('fotos').value = p.fotos || '';
     document.getElementById('estado').value = p.estado || 'Planificado';
+    document.getElementById('publicarEshop').checked = !!p.publicareshop;
     document.getElementById('formOverlay').classList.remove('hidden');
 }
 
