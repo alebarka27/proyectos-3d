@@ -95,6 +95,7 @@ async function renderTienda() {
                 ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
                 : `<div class="product-img-placeholder">🖨️</div>`;
             const sinStock = !p.cantidad || p.cantidad <= 0;
+            const precio = parseFloat(p.precioventa) || 0;
             const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
             return `
                 <article class="product-card">
@@ -102,9 +103,13 @@ async function renderTienda() {
                     <div class="product-body">
                         ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
                         <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
-                        ${p.precioventa ? `<div class="product-precio">$${parseFloat(p.precioventa).toFixed(2)}</div>` : ''}
+                        ${precio ? `
+                        <div class="precio-section">
+                            <span class="precio-simbolo">$</span>
+                            <span class="precio-monto">${formatearPrecio(precio)}</span>
+                        </div>` : ''}
                         <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                            ${sinStock ? '❌ Sin stock' : `✅ ${p.cantidad} en stock`}
+                            ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                         </div>
                         <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
                             💬 Consultar por WhatsApp
@@ -117,6 +122,10 @@ async function renderTienda() {
     } catch {
         estado.textContent = 'No se pudo cargar la tienda.';
     }
+}
+
+function formatearPrecio(n) {
+    return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 function getWhatsAppNumero() {

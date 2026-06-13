@@ -209,27 +209,32 @@ td a:hover { text-decoration: underline; }
 
 .eshop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
 
-.product-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s, transform .2s; }
-.product-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+.product-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; transition: box-shadow .2s, transform .2s; }
+.product-card:hover { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); transform: translateY(-3px); border-color: var(--border-strong); }
 
 .product-img { aspect-ratio: 1; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.product-img img { width: 100%; height: 100%; object-fit: cover; }
+.product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+.product-card:hover .product-img img { transform: scale(1.05); }
 .product-img-placeholder { font-size: 40px; opacity: .4; }
 
-.product-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
-.product-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; text-wrap: balance; }
+.product-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.product-title { font-size: 14px; font-weight: 500; color: var(--text-dim); letter-spacing: -.1px; text-wrap: balance; line-height: 1.4; }
+
+.precio-section { display: flex; align-items: flex-start; gap: 2px; margin: 2px 0; }
+.precio-simbolo { font-size: 16px; font-weight: 500; color: var(--text); line-height: 1.8; }
+.precio-monto { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -1px; line-height: 1; }
 
 .btn-whatsapp {
-    margin-top: auto;
+    margin-top: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     background: #25d366;
     color: #07140d;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 13.5px;
+    padding: 11px 14px;
+    border-radius: 6px;
+    font-size: 14px;
     font-weight: 600;
     text-decoration: none;
     transition: background .15s, transform .1s;
@@ -239,11 +244,9 @@ td a:hover { text-decoration: underline; }
 .btn-whatsapp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-whatsapp-disabled { opacity: .35; pointer-events: none; }
 
-.product-precio { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
-
-.product-stock { font-size: 12px; font-weight: 500; padding: 4px 0; }
+.product-stock { font-size: 12px; font-weight: 500; padding: 2px 0; }
 .stock-disponible { color: var(--success); }
-.stock-agotado { color: var(--danger); }
+.stock-agotado { color: var(--text-faint); }
 
 .btn-eshop-on { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
 .btn-eshop-on:hover { background: rgba(74, 222, 128, 0.2); }
@@ -293,6 +296,7 @@ td a:hover { text-decoration: underline; }
     .btn-ir-tienda-sidebar { margin-bottom: 0; flex-shrink: 0; width: auto; }
     .main-content { padding: 18px; }
     .calc-grid { grid-template-columns: 1fr; }
+    .precio-monto { font-size: 22px; }
 
     /* Tablas -> tarjetas */
     table { border: none; background: transparent; }
