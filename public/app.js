@@ -47,6 +47,7 @@ async function cargar() {
         todasLasVentas = await resV.json();
         renderSidebar();
         renderTabla();
+        checkMLStatus();
     }
 
     cambiarVista('tienda');
@@ -487,6 +488,48 @@ async function eliminarCarpeta(nombre) {
     if (catActual === nombre) catActual = '';
     await renderCatsAdmin();
     cargar();
+}
+
+/* --- Mercado Libre --- */
+
+async function checkMLStatus() {
+    const mlStatus = document.getElementById('mlStatus');
+    if (!mlStatus) return;
+    try {
+        const res = await fetch('/api/ml/status');
+        const data = await res.json();
+        const dot = mlStatus.querySelector('.ml-dot');
+        const label = document.getElementById('mlLabel');
+        const btnConectar = document.getElementById('btnConectarML');
+        const btnDesconectar = document.getElementById('btnDesconectarML');
+        if (data.connected) {
+            dot.className = 'ml-dot ml-connected';
+            label.textContent = 'ML conectado';
+            btnConectar.classList.add('hidden');
+            btnDesconectar.classList.remove('hidden');
+        } else {
+            dot.className = 'ml-dot ml-disconnected';
+            label.textContent = 'ML desconectado';
+            btnConectar.classList.remove('hidden');
+            btnDesconectar.classList.add('hidden');
+        }
+    } catch {
+        // ignore
+    }
+}
+
+function conectarML() {
+    window.location.href = '/api/ml/auth';
+}
+
+async function desconectarML() {
+    if (!confirm('¿Desconectar Mercado Libre?')) return;
+    try {
+        await apiFetch('/api/ml/disconnect', { method: 'POST' });
+        checkMLStatus();
+    } catch {
+        // ignore
+    }
 }
 
 cargar();

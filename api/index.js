@@ -3,6 +3,7 @@ const { sql } = require('@vercel/postgres');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const ml = require('./ml');
 
 // workaround: ensure no app.get('*') pattern for Express 5 compatibility
 
@@ -18,7 +19,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const COOKIE_NAME = 'session';
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
-const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/api/login', '/api/logout', '/api/me', '/eshop', '/eshop.js', '/api/eshop']);
+const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/api/login', '/api/logout', '/api/me', '/api/ml/auth', '/api/ml/callback', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop']);
 
 function sign(value) {
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
@@ -182,6 +183,7 @@ async function initDB() {
             );
         `;
         console.log('Base de datos inicializada');
+        await ml.initMLTokens().catch(e => console.log('initMLTokens:', e.message));
 
         const dbPath = path.join(__dirname, '..', 'proyectos.json');
         if (fs.existsSync(dbPath)) {
@@ -438,6 +440,93 @@ app.delete('/api/ventas/:id', async (req, res) => {
         res.json({ ok: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+/* ---- Mercado Libre Integration ---- */
+
+app.get('/api/ml/auth', (req, res) => {
+    if (!process.env.ML_CLIENT_ID) return res.status(400).json({ error: 'ML_CLIENT_ID no configurado' });
+    res.redirect(ml.getAuthURL());
+});
+
+app.get('/api/ml/callback', async (req, res) => {
+    try {
+        const { code } = req.query;
+        if (!code) return res.status(400).send('Falta code');
+        await ml.exchangeCode(code);
+        res.redirect('/');
+    } catch (err) {
+        console.error('ML callback error:', err);
+        res.status(500).send('Error al conectar con Mercado Libre: ' + err.message);
+    }
+});
+
+app.get('/api/ml/status', async (req, res) => {
+    try {
+        const connected = await ml.isConnected();
+        res.json({ connected });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/ml/disconnect', async (req, res) => {
+    try {
+        const { sql } = require('@vercel/postgres');
+        await sql`DELETE FROM ml_tokens WHERE id = 'main'`;
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/proyectos/:id/ml-sync', async (req, res) => {
+    try {
+        const { rows } = await sql`
+            SELECT ml_id, precioventa, cantidad, estado, nombre FROM proyectos WHERE id = ${req.params.id}
+        `;
+        if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+        const p = rows[0];
+        if (!p.ml_id) return res.status(400).json({ error: 'Este proyecto no tiene ml_id' });
+        const result = await ml.updateItem(p.ml_id, {
+            price: p.precioventa,
+            available_quantity: p.cantidad,
+            status: p.estado === 'Cancelado' ? 'paused' : 'active',
+        });
+        res.json({ ok: true, ml: result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/ml/webhook', async (req, res) => {
+    try {
+        const { topic, resource } = req.body;
+        if (!topic) return res.sendStatus(400);
+        if (topic === 'orders_v2' && resource) {
+            const orderId = resource.split('/').pop();
+            const order = await ml.getOrder(orderId);
+            for (const item of order.order_items || []) {
+                const mlItemId = item.item.id;
+                const { rows } = await sql`SELECT id FROM proyectos WHERE ml_id = ${mlItemId}`;
+                if (rows.length) {
+                    const pId = rows[0].id;
+                    await sql`UPDATE proyectos SET cantidad = GREATEST(0, cantidad - 1) WHERE id = ${pId}`;
+                    const ventaId = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+                    const fecha = new Date().toISOString().split('T')[0];
+                    await sql`
+                        INSERT INTO ventas (id, proyectoid, cantidad, precioventa, costo, ganancia, fecha)
+                        VALUES (${ventaId}, ${pId}, 1, ${item.unit_price || 0}, 0, ${item.unit_price || 0}, ${fecha})
+                    `;
+                    console.log(`Venta ML auto-registrada: ${mlItemId} -> proyecto ${pId}`);
+                }
+            }
+        }
+        res.sendStatus(200);
+    } catch (err) {
+        console.error('ML webhook error:', err);
+        res.sendStatus(200);
     }
 });
 
