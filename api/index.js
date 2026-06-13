@@ -3,6 +3,8 @@ const { sql } = require('@vercel/postgres');
 const path = require('path');
 const fs = require('fs');
 
+// workaround: ensure no app.get('*') pattern for Express 5 compatibility
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
