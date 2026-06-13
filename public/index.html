@@ -17,27 +17,32 @@
                 <span class="brand-dot"></span>
                 <span>Gestor 3D</span>
             </div>
-            <div class="sidebar-header">
-                <h2 class="sidebar-title">Carpetas</h2>
-                <button class="btn-sidebar" onclick="mostrarGestionCarpetas()" title="Administrar carpetas">⚙️</button>
+            <div class="sidebar-auth">
+                <div class="sidebar-header">
+                    <h2 class="sidebar-title">Carpetas</h2>
+                    <button class="btn-sidebar" onclick="mostrarGestionCarpetas()" title="Administrar carpetas">⚙️</button>
+                </div>
+                <div class="carpeta carpeta-activa" data-cat="" onclick="filtrar('')">
+                    <span class="carpeta-icon">📁</span> Todos <span class="carpeta-count" id="count-todas">0</span>
+                </div>
+                <div id="listaCarpetas"></div>
             </div>
-            <div class="carpeta carpeta-activa" data-cat="" onclick="filtrar('')">
-                <span class="carpeta-icon">📁</span> Todos <span class="carpeta-count" id="count-todas">0</span>
-            </div>
-            <div id="listaCarpetas"></div>
             <div class="sidebar-footer">
-                <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+                <button id="btnIrTiendaSidebar" class="btn-ir-tienda-sidebar" onclick="cambiarVista('tienda')">🛍️ Ir a la Tienda</button>
+                <button id="btnLogin" class="btn-logout" onclick="window.location.href='/login.html'">Iniciar sesión</button>
+                <button id="btnLogout" class="btn-logout hidden" onclick="logout()">Cerrar sesión</button>
             </div>
         </aside>
 
         <main class="main-content">
             <div class="top-bar">
                 <div class="tabs">
-                    <button class="tab tab-activo" onclick="cambiarVista('proyectos')">📋 Proyectos</button>
-                    <button class="tab" onclick="cambiarVista('ventas')">💰 Ventas</button>
-                    <button class="tab" onclick="cambiarVista('calculadora')">🧮 Calculadora</button>
+                    <button class="tab tab-activo" onclick="cambiarVista('tienda')">🛍️ Tienda</button>
+                    <button class="tab tab-auth" onclick="cambiarVista('proyectos')">📋 Proyectos</button>
+                    <button class="tab tab-auth" onclick="cambiarVista('ventas')">💰 Ventas</button>
+                    <button class="tab tab-auth" onclick="cambiarVista('calculadora')">🧮 Calculadora</button>
                 </div>
-                <button id="btnNuevo" class="btn-primary">+ Nuevo Proyecto</button>
+                <button id="btnNuevo" class="btn-primary hidden">+ Nuevo Proyecto</button>
             </div>
 
             <div id="formOverlay" class="overlay hidden">
@@ -55,6 +60,7 @@
                         <label>Costo ($) <input type="number" id="costo" step="0.01" placeholder="Costo de producción"></label>
                         <label>Precio venta ($) <input type="number" id="precioVenta" step="0.01" placeholder="Precio al que se vende"></label>
                         <label>Vendidos <input type="number" id="vendidos" step="1" placeholder="Cantidad vendida"></label>
+                        <label>Stock en tienda <input type="number" id="cantidad" step="1" placeholder="0 = sin stock"></label>
                         <label>Fotos (URLs, separadas por comas) <input type="text" id="fotos" placeholder="https://..., https://..."></label>
                         <label>Estado
                             <select id="estado">
@@ -180,6 +186,14 @@
                         <button class="btn-primary" onclick="usarComoCosto()">Usar como costo del proyecto</button>
                     </div>
                 </div>
+            </div>
+
+            <div id="vistaTienda" class="hidden">
+                <div class="top-bar">
+                    <h2 style="font-size:18px;">🛍️ Tienda</h2>
+                </div>
+                <p id="tiendaEstado" class="eshop-estado">Cargando tienda...</p>
+                <div id="tiendaGrid" class="eshop-grid hidden"></div>
             </div>
 
             <div id="ventaOverlay" class="overlay hidden">

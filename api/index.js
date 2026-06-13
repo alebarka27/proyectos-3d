@@ -18,7 +18,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const COOKIE_NAME = 'session';
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
-const PUBLIC_PATHS = new Set(['/login.html', '/login.js', '/style.css', '/app.js', '/api/login', '/api/logout', '/eshop', '/eshop.js', '/api/eshop']);
+const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/api/login', '/api/logout', '/api/me', '/eshop', '/eshop.js', '/api/eshop']);
 
 function sign(value) {
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
@@ -99,6 +99,10 @@ app.post('/api/logout', (req, res) => {
     res.json({ ok: true });
 });
 
+app.get('/api/me', (req, res) => {
+    res.json({ authed: isAuthenticated(req) });
+});
+
 app.use((req, res, next) => {
     const authed = isAuthenticated(req);
     if (req.path === '/login.html' && authed) return res.redirect('/');
@@ -158,6 +162,7 @@ async function initDB() {
             );
         `;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS publicareshop BOOLEAN DEFAULT FALSE;`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS cantidad INTEGER DEFAULT 0;`;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -257,13 +262,13 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad)
             VALUES (${id}, ${nombre || ''}, ${codigo || ''}, ${categoria || ''}, ${linkArchivo || ''},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
-                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop})
+                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -274,13 +279,14 @@ app.post('/api/proyectos', async (req, res) => {
 
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad } = req.body;
         const { rowCount } = await sql`
             UPDATE proyectos SET
                 nombre=${nombre || ''}, codigo=${codigo || ''}, categoria=${categoria || ''},
                 linkarchivo=${linkArchivo || ''}, costo=${parseFloat(costo) || 0},
                 precioventa=${parseFloat(precioVenta) || 0}, vendidos=${parseInt(vendidos) || 0},
-                fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop}
+                fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
+                cantidad=${parseInt(cantidad) || 0}
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -300,10 +306,22 @@ app.delete('/api/proyectos/:id', async (req, res) => {
     }
 });
 
+app.patch('/api/proyectos/:id/eshop', async (req, res) => {
+    try {
+        const { publicarEshop } = req.body;
+        await sql`UPDATE proyectos SET publicareshop=${!!publicarEshop} WHERE id=${req.params.id}`;
+        const { rows } = await sql`SELECT id, publicareshop FROM proyectos WHERE id = ${req.params.id}`;
+        if (rows.length === 0) return res.status(404).json({ error: 'No encontrado' });
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/eshop', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT nombre, categoria, fotos FROM proyectos
+            SELECT id, nombre, categoria, fotos, precioventa, cantidad FROM proyectos
             WHERE publicareshop = true
             ORDER BY nombre
         `;

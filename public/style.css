@@ -237,6 +237,21 @@ td a:hover { text-decoration: underline; }
 .btn-whatsapp:hover { background: #2ee578; }
 .btn-whatsapp:active { transform: scale(.98); }
 .btn-whatsapp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-whatsapp-disabled { opacity: .35; pointer-events: none; }
+
+.product-precio { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+
+.product-stock { font-size: 12px; font-weight: 500; padding: 4px 0; }
+.stock-disponible { color: var(--success); }
+.stock-agotado { color: var(--danger); }
+
+.btn-eshop-on { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
+.btn-eshop-on:hover { background: rgba(74, 222, 128, 0.2); }
+.btn-eshop-off { background: rgba(255, 255, 255, 0.04); border-color: var(--border); color: var(--text-dim); }
+.btn-eshop-off:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+
+.btn-ir-tienda-sidebar { width: 100%; background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.2); color: var(--success); padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 600; margin-bottom: 6px; transition: all .15s; }
+.btn-ir-tienda-sidebar:hover { background: rgba(74, 222, 128, 0.15); border-color: rgba(74, 222, 128, 0.4); }
 
 .eshop-footer { max-width: 1200px; margin: 60px auto 0; padding-top: 28px; border-top: 1px solid var(--border); text-align: center; }
 .eshop-footer-text { color: var(--text-dim); font-size: 13px; margin-bottom: 14px; }
@@ -274,7 +289,8 @@ td a:hover { text-decoration: underline; }
     #listaCarpetas { display: flex; gap: 6px; flex-shrink: 0; }
     .carpeta { flex-shrink: 0; white-space: nowrap; border-radius: var(--radius-sm); border-right: none; }
     .carpeta-activa { border: 1px solid var(--border-strong); border-right: none; }
-    .sidebar-footer { margin-top: 0; margin-left: auto; padding: 0; border: none; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 0; margin-left: auto; padding: 0; border: none; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+    .btn-ir-tienda-sidebar { margin-bottom: 0; flex-shrink: 0; width: auto; }
     .main-content { padding: 18px; }
     .calc-grid { grid-template-columns: 1fr; }
 

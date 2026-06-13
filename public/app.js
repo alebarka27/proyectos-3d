@@ -13,6 +13,7 @@ const API_CAT = '/api/categorias';
 let catActual = '';
 let todosProyectos = [];
 let catsGuardadas = [];
+let authed = false;
 
 async function apiFetch(url, options) {
     const res = await fetch(url, options);
@@ -29,12 +30,26 @@ async function logout() {
 }
 
 async function cargar() {
-    const [resP, resC, resV] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA)]);
-    todosProyectos = await resP.json();
-    catsGuardadas = await resC.json();
-    todasLasVentas = await resV.json();
-    renderSidebar();
-    renderTabla();
+    const resMe = await fetch('/api/me');
+    const me = await resMe.json();
+    authed = me.authed;
+
+    document.querySelectorAll('.tab-auth').forEach(t => t.classList.toggle('hidden', !authed));
+    document.querySelectorAll('.sidebar-auth').forEach(el => el.classList.toggle('hidden', !authed));
+    document.getElementById('btnIrTiendaSidebar').classList.toggle('hidden', !authed);
+    document.getElementById('btnLogin').classList.toggle('hidden', authed);
+    document.getElementById('btnLogout').classList.toggle('hidden', !authed);
+
+    if (authed) {
+        const [resP, resC, resV] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA)]);
+        todosProyectos = await resP.json();
+        catsGuardadas = await resC.json();
+        todasLasVentas = await resV.json();
+        renderSidebar();
+        renderTabla();
+    }
+
+    cambiarVista('tienda');
 }
 
 function renderSidebar() {
@@ -62,6 +77,54 @@ function ganancia(p) {
     return (venta - costo) * cant;
 }
 
+async function renderTienda() {
+    const estado = document.getElementById('tiendaEstado');
+    const grid = document.getElementById('tiendaGrid');
+    try {
+        const res = await fetch('/api/eshop');
+        const productos = await res.json();
+        if (!productos.length) {
+            estado.textContent = 'Todavía no hay productos en la tienda.';
+            estado.classList.remove('hidden');
+            grid.classList.add('hidden');
+            return;
+        }
+        grid.innerHTML = productos.map(p => {
+            const foto = (p.fotos || '').split(',')[0]?.trim();
+            const img = foto
+                ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
+                : `<div class="product-img-placeholder">🖨️</div>`;
+            const sinStock = !p.cantidad || p.cantidad <= 0;
+            const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
+            return `
+                <article class="product-card">
+                    <div class="product-img">${img}</div>
+                    <div class="product-body">
+                        ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                        <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
+                        ${p.precioventa ? `<div class="product-precio">$${parseFloat(p.precioventa).toFixed(2)}</div>` : ''}
+                        <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
+                            ${sinStock ? '❌ Sin stock' : `✅ ${p.cantidad} en stock`}
+                        </div>
+                        <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                            💬 Consultar por WhatsApp
+                        </a>
+                    </div>
+                </article>`;
+        }).join('');
+        estado.classList.add('hidden');
+        grid.classList.remove('hidden');
+    } catch {
+        estado.textContent = 'No se pudo cargar la tienda.';
+    }
+}
+
+function getWhatsAppNumero() {
+    return '5491100000000';
+}
+
+const WHATSAPP_NUMERO = getWhatsAppNumero();
+
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 
 function renderTabla() {
@@ -84,7 +147,7 @@ function renderTabla() {
                 <td data-label="Vend.">${vend || '-'}</td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
-                <td data-label="Eshop">${p.publicareshop ? '🛍️' : '-'}</td>
+                <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? '🛍️ En tienda' : '📦 Publicar'}</button></td>
                 <td data-label="Acciones">
                     <button class="btn-sm" onclick="editar('${p.id}')">✏️</button>
                     <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">🗑️</button>
@@ -123,6 +186,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         costo: document.getElementById('costo').value,
         precioVenta: document.getElementById('precioVenta').value,
         vendidos: document.getElementById('vendidos').value,
+        cantidad: document.getElementById('cantidad').value,
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
         publicarEshop: document.getElementById('publicarEshop').checked,
@@ -147,6 +211,7 @@ async function editar(id) {
     document.getElementById('costo').value = p.costo || '';
     document.getElementById('precioVenta').value = p.precioVenta || '';
     document.getElementById('vendidos').value = p.vendidos || '';
+    document.getElementById('cantidad').value = p.cantidad || '';
     document.getElementById('fotos').value = p.fotos || '';
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
@@ -158,6 +223,15 @@ async function eliminar(id) {
         await apiFetch(`${API_PROY}/${id}`, { method: 'DELETE' });
         cargar();
     }
+}
+
+async function toggleEshop(id, actual) {
+    await apiFetch(`${API_PROY}/${id}/eshop`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicarEshop: !actual })
+    });
+    cargar();
 }
 
 /* --- Gestion de carpetas --- */
@@ -273,16 +347,19 @@ function renderVentas() {
 }
 
 function cambiarVista(vista) {
-    const etiquetas = { proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
+    const etiquetas = { tienda: 'Tienda', proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
     document.querySelectorAll('.tab').forEach(t => {
         t.classList.toggle('tab-activo', t.textContent.includes(etiquetas[vista]));
     });
+    document.getElementById('vistaTienda').classList.toggle('hidden', vista !== 'tienda');
     document.getElementById('vistaProyectos').classList.toggle('hidden', vista !== 'proyectos');
     document.getElementById('vistaVentas').classList.toggle('hidden', vista !== 'ventas');
     document.getElementById('vistaCalculadora').classList.toggle('hidden', vista !== 'calculadora');
     document.getElementById('btnNuevo').classList.toggle('hidden', vista !== 'proyectos');
+    if (vista === 'tienda') renderTienda();
     if (vista === 'ventas') renderVentas();
     if (vista === 'calculadora') calcularPrecio();
+    if (vista === 'proyectos') renderTabla();
 }
 
 /* --- Calculadora de costos --- */

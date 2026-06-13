@@ -28,10 +28,11 @@ test('GET /api/proyectos sin sesion devuelve 401', async () => {
     assert.strictEqual(res.status, 401);
 });
 
-test('GET / sin sesion redirige a login.html', async () => {
+test('GET / sin sesion sirve index.html (ahora publica)', async () => {
     const res = await fetch(`${baseUrl}/`);
     assert.strictEqual(res.status, 200);
-    assert.match(res.url, /login\.html$/);
+    const text = await res.text();
+    assert.match(text, /<title>Gestor de Proyectos 3D/);
 });
 
 test('GET /login.html es publico', async () => {
