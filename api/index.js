@@ -163,6 +163,7 @@ async function initDB() {
         `;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS publicareshop BOOLEAN DEFAULT FALSE;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS cantidad INTEGER DEFAULT 0;`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS ml_id TEXT DEFAULT '';`;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -262,13 +263,13 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id)
             VALUES (${id}, ${nombre || ''}, ${codigo || ''}, ${categoria || ''}, ${linkArchivo || ''},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
-                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0})
+                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -279,14 +280,14 @@ app.post('/api/proyectos', async (req, res) => {
 
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId } = req.body;
         const { rowCount } = await sql`
             UPDATE proyectos SET
                 nombre=${nombre || ''}, codigo=${codigo || ''}, categoria=${categoria || ''},
                 linkarchivo=${linkArchivo || ''}, costo=${parseFloat(costo) || 0},
                 precioventa=${parseFloat(precioVenta) || 0}, vendidos=${parseInt(vendidos) || 0},
                 fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
-                cantidad=${parseInt(cantidad) || 0}
+                cantidad=${parseInt(cantidad) || 0}, ml_id=${mlId || ''}
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -318,10 +319,31 @@ app.patch('/api/proyectos/:id/eshop', async (req, res) => {
     }
 });
 
+app.patch('/api/proyectos/:id/vender', async (req, res) => {
+    try {
+        const { rows: actual } = await sql`SELECT id, nombre, cantidad, costo, precioventa FROM proyectos WHERE id = ${req.params.id}`;
+        if (actual.length === 0) return res.status(404).json({ error: 'No encontrado' });
+        const p = actual[0];
+        const cant = Math.max(0, (p.cantidad || 0) - 1);
+        await sql`UPDATE proyectos SET cantidad=${cant} WHERE id=${req.params.id}`;
+        const ventaId = Date.now().toString();
+        const fecha = new Date().toISOString().split('T')[0];
+        await sql`
+            INSERT INTO ventas (id, proyectoid, proyectonombre, cantidad, precioventa, costo, ganancia, fecha)
+            VALUES (${ventaId}, ${p.id}, ${p.nombre || ''}, 1, ${p.precioventa || 0}, ${p.costo || 0},
+                    ${(p.precioventa || 0) - (p.costo || 0)}, ${fecha})
+        `;
+        const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${req.params.id}`;
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/eshop', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, categoria, fotos, precioventa, cantidad FROM proyectos
+            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos
             WHERE publicareshop = true
             ORDER BY nombre
         `;

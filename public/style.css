@@ -224,17 +224,19 @@ td a:hover { text-decoration: underline; }
 .precio-simbolo { font-size: 16px; font-weight: 500; color: var(--text); line-height: 1.8; }
 .precio-monto { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -1px; line-height: 1; }
 
+.product-botones { display: flex; gap: 6px; margin-top: 6px; }
+.product-botones a, .product-botones button { flex: 1; text-align: center; }
+
 .btn-whatsapp {
-    margin-top: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     background: #25d366;
     color: #07140d;
-    padding: 11px 14px;
+    padding: 10px 8px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     text-decoration: none;
     transition: background .15s, transform .1s;
@@ -243,6 +245,41 @@ td a:hover { text-decoration: underline; }
 .btn-whatsapp:active { transform: scale(.98); }
 .btn-whatsapp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-whatsapp-disabled { opacity: .35; pointer-events: none; }
+
+.btn-ml {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #fff;
+    color: #111;
+    padding: 10px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .15s, transform .1s;
+}
+.btn-ml:hover { background: #e8e8e8; }
+.btn-ml:active { transform: scale(.98); }
+
+.btn-vender {
+    width: 100%;
+    margin-top: 6px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+}
+.btn-vender:hover { border-color: var(--success); color: var(--success); background: rgba(74, 222, 128, 0.06); }
+
+.link-ml { color: var(--info); text-decoration: none; font-weight: 500; font-size: 12.5px; }
+.link-ml:hover { text-decoration: underline; }
 
 .product-stock { font-size: 12px; font-weight: 500; padding: 2px 0; }
 .stock-disponible { color: var(--success); }

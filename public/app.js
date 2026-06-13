@@ -97,6 +97,7 @@ async function renderTienda() {
             const sinStock = !p.cantidad || p.cantidad <= 0;
             const precio = parseFloat(p.precioventa) || 0;
             const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
+            const mlUrl = p.ml_id ? `https://mercadolibre.com.ar/item/${escapeHTML(p.ml_id)}` : '';
             return `
                 <article class="product-card">
                     <div class="product-img">${img}</div>
@@ -111,9 +112,13 @@ async function renderTienda() {
                         <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
                             ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                         </div>
-                        <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
-                            💬 Consultar por WhatsApp
-                        </a>
+                        <div class="product-botones">
+                            <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                                💬 WhatsApp
+                            </a>
+                            ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">🛒 ML</a>` : ''}
+                        </div>
+                        ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">✅ Marcar vendido</button>` : ''}
                     </div>
                 </article>`;
         }).join('');
@@ -156,6 +161,7 @@ function renderTabla() {
                 <td data-label="Vend.">${vend || '-'}</td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
+                <td data-label="ML">${p.ml_id ? `<a href="https://mercadolibre.com.ar/item/${escapeHTML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">🔗 ML</a>` : '-'}</td>
                 <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? '🛍️ En tienda' : '📦 Publicar'}</button></td>
                 <td data-label="Acciones">
                     <button class="btn-sm" onclick="editar('${p.id}')">✏️</button>
@@ -196,6 +202,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         precioVenta: document.getElementById('precioVenta').value,
         vendidos: document.getElementById('vendidos').value,
         cantidad: document.getElementById('cantidad').value,
+        mlId: document.getElementById('mlId').value,
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
         publicarEshop: document.getElementById('publicarEshop').checked,
@@ -221,6 +228,7 @@ async function editar(id) {
     document.getElementById('precioVenta').value = p.precioVenta || '';
     document.getElementById('vendidos').value = p.vendidos || '';
     document.getElementById('cantidad').value = p.cantidad || '';
+    document.getElementById('mlId').value = p.ml_id || '';
     document.getElementById('fotos').value = p.fotos || '';
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
@@ -240,6 +248,11 @@ async function toggleEshop(id, actual) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ publicarEshop: !actual })
     });
+    cargar();
+}
+
+async function marcarVendido(id) {
+    await apiFetch(`${API_PROY}/${id}/vender`, { method: 'PATCH' });
     cargar();
 }
 

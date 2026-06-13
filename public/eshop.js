@@ -33,6 +33,7 @@ function renderProducto(p) {
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;
     const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
+    const mlUrl = p.ml_id ? `https://mercadolibre.com.ar/item/${escapeHTML(p.ml_id)}` : '';
     return `
         <article class="product-card">
             <div class="product-img">${img}</div>
@@ -47,9 +48,12 @@ function renderProducto(p) {
                 <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
                     ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                 </div>
-                <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
-                    💬 Consultar por WhatsApp
-                </a>
+                <div class="product-botones">
+                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                        💬 WhatsApp
+                    </a>
+                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">🛒 ML</a>` : ''}
+                </div>
             </div>
         </article>`;
 }
