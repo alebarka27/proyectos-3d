@@ -1,4 +1,5 @@
 const { sql } = require('@vercel/postgres');
+const crypto = require('crypto');
 
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '';
 const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || '';
@@ -16,34 +17,61 @@ async function initMLTokens() {
             user_id BIGINT DEFAULT 0
         );
     `;
+    await sql`
+        ALTER TABLE ml_tokens ADD COLUMN IF NOT EXISTS code_verifier TEXT DEFAULT ''
+    `;
 }
 
-function getAuthURL() {
-    return `${ML_AUTH}/authorization?response_type=code&client_id=${ML_CLIENT_ID}&redirect_uri=${encodeURIComponent(ML_REDIRECT_URI)}`;
+function base64URLEncode(buf) {
+    return buf.toString('base64url');
+}
+
+function generateCodeVerifier() {
+    return base64URLEncode(crypto.randomBytes(32));
+}
+
+function generateCodeChallenge(verifier) {
+    return base64URLEncode(crypto.createHash('sha256').update(verifier).digest());
+}
+
+async function getAuthURL() {
+    const verifier = generateCodeVerifier();
+    const challenge = generateCodeChallenge(verifier);
+    await sql`
+        INSERT INTO ml_tokens (id, code_verifier)
+        VALUES ('main', ${verifier})
+        ON CONFLICT (id) DO UPDATE SET code_verifier = EXCLUDED.code_verifier
+    `;
+    return `${ML_AUTH}/authorization?response_type=code&client_id=${ML_CLIENT_ID}&redirect_uri=${encodeURIComponent(ML_REDIRECT_URI)}&code_challenge=${challenge}&code_challenge_method=S256`;
 }
 
 async function exchangeCode(code) {
+    const { rows } = await sql`SELECT code_verifier FROM ml_tokens WHERE id = 'main'`;
+    const verifier = rows.length ? rows[0].code_verifier : '';
+    const body = {
+        grant_type: 'authorization_code',
+        client_id: ML_CLIENT_ID,
+        client_secret: ML_CLIENT_SECRET,
+        code,
+        redirect_uri: ML_REDIRECT_URI,
+    };
+    if (verifier) body.code_verifier = verifier;
     const res = await fetch(`${ML_API}/oauth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: ML_CLIENT_ID,
-            client_secret: ML_CLIENT_SECRET,
-            code,
-            redirect_uri: ML_REDIRECT_URI,
-        }),
+        body: new URLSearchParams(body),
     });
     if (!res.ok) throw new Error('Error al intercambiar código: ' + res.status);
     const data = await res.json();
     await sql`
-        INSERT INTO ml_tokens (id, access_token, refresh_token, expires_at, user_id)
-        VALUES ('main', ${data.access_token}, ${data.refresh_token}, ${Date.now() + data.expires_in * 1000}, ${data.user_id || 0})
+        INSERT INTO ml_tokens (id, access_token, refresh_token, expires_at, user_id, code_verifier)
+        VALUES ('main', ${data.access_token}, ${data.refresh_token}, ${Date.now() + data.expires_in * 1000}, ${data.user_id || 0}, '')
         ON CONFLICT (id) DO UPDATE SET
             access_token = EXCLUDED.access_token,
             refresh_token = EXCLUDED.refresh_token,
             expires_at = EXCLUDED.expires_at,
-            user_id = EXCLUDED.user_id
+            user_id = EXCLUDED.user_id,
+            code_verifier = ''
     `;
     return data;
 }

@@ -445,9 +445,14 @@ app.delete('/api/ventas/:id', async (req, res) => {
 
 /* ---- Mercado Libre Integration ---- */
 
-app.get('/api/ml/auth', (req, res) => {
+app.get('/api/ml/auth', async (req, res) => {
     if (!process.env.ML_CLIENT_ID) return res.status(400).json({ error: 'ML_CLIENT_ID no configurado' });
-    res.redirect(ml.getAuthURL());
+    try {
+        const authURL = await ml.getAuthURL();
+        res.redirect(authURL);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/api/ml/callback', async (req, res) => {
