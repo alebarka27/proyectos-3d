@@ -43,13 +43,16 @@ function renderSidebar() {
     const container = document.getElementById('listaCarpetas');
     document.getElementById('count-todas').textContent = todosProyectos.length;
     const datalist = document.getElementById('catList');
-    datalist.innerHTML = todas.map(c => `<option value="${c}">`).join('');
+    datalist.innerHTML = todas.map(c => `<option value="${escapeHTML(c)}">`).join('');
     container.innerHTML = todas.map(c => `
-        <div class="carpeta ${catActual === c ? 'carpeta-activa' : ''}" data-cat="${c}" onclick="filtrar('${c}')">
-            <span class="carpeta-icon">📂</span> ${c}
+        <div class="carpeta ${catActual === c ? 'carpeta-activa' : ''}" data-cat="${escapeHTML(c)}">
+            <span class="carpeta-icon">📂</span> ${escapeHTML(c)}
             <span class="carpeta-count">${todosProyectos.filter(p => p.categoria === c).length}</span>
         </div>
     `).join('');
+    container.querySelectorAll('.carpeta').forEach(el => {
+        el.addEventListener('click', () => filtrar(el.dataset.cat));
+    });
 }
 
 function ganancia(p) {
@@ -59,27 +62,29 @@ function ganancia(p) {
     return (venta - costo) * cant;
 }
 
+const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
+
 function renderTabla() {
     const filtrados = catActual ? todosProyectos.filter(p => p.categoria === catActual) : todosProyectos;
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = filtrados.map(p => {
-        const fotos = (p.fotos || '').split(',').map(f => f.trim()).filter(Boolean);
         const g = ganancia(p);
         const costo = parseFloat(p.costo) || 0;
         const pv = parseFloat(p.precioVenta) || 0;
         const vend = parseInt(p.vendidos) || 0;
+        const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
         return `
             <tr>
-                <td>${p.nombre}</td>
-                <td>${p.codigo}</td>
-                <td>${p.categoria ? `<span class="cat-badge">${p.categoria}</span>` : '-'}</td>
-                <td>${p.linkArchivo ? `<a href="${p.linkArchivo}" target="_blank">🔗 Archivo</a>` : '-'}</td>
-                <td>${costo ? '$'+costo : '-'}</td>
-                <td>${pv ? '$'+pv : '-'}</td>
-                <td>${vend || '-'}</td>
-                <td class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
-                <td><span class="estado-badge estado-${p.estado}">${p.estado}</span></td>
-                <td>
+                <td data-label="Nombre">${escapeHTML(p.nombre)}</td>
+                <td data-label="Código">${escapeHTML(p.codigo)}</td>
+                <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
+                <td data-label="Link Archivo">${p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">🔗 Archivo</a>` : '-'}</td>
+                <td data-label="Costo">${costo ? '$'+costo : '-'}</td>
+                <td data-label="Precio Vta">${pv ? '$'+pv : '-'}</td>
+                <td data-label="Vend.">${vend || '-'}</td>
+                <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
+                <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
+                <td data-label="Acciones">
                     <button class="btn-sm" onclick="editar('${p.id}')">✏️</button>
                     <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">🗑️</button>
                 </td>
@@ -167,14 +172,19 @@ async function renderCatsAdmin() {
     await cargarCatsGuardadas();
     const container = document.getElementById('listaCatsAdmin');
     container.innerHTML = catsGuardadas.map(c => `
-        <div class="cat-admin-item">
-            <span>📂 ${c}</span>
+        <div class="cat-admin-item" data-cat="${escapeHTML(c)}">
+            <span>📂 ${escapeHTML(c)}</span>
             <div>
-                <button class="btn-sm" onclick="renombrarCarpeta('${c}')">✏️</button>
-                <button class="btn-sm btn-peligro" onclick="eliminarCarpeta('${c}')">🗑️</button>
+                <button class="btn-sm btn-renombrar">✏️</button>
+                <button class="btn-sm btn-peligro btn-eliminar-cat">🗑️</button>
             </div>
         </div>
     `).join('');
+    container.querySelectorAll('.cat-admin-item').forEach(el => {
+        const cat = el.dataset.cat;
+        el.querySelector('.btn-renombrar').addEventListener('click', () => renombrarCarpeta(cat));
+        el.querySelector('.btn-eliminar-cat').addEventListener('click', () => eliminarCarpeta(cat));
+    });
 }
 
 async function cargarCatsGuardadas() {
@@ -238,36 +248,72 @@ function renderVentas() {
         const gan = (v.precioVenta - v.costo) * v.cantidad;
         return `
             <tr>
-                <td>${v.proyectoNombre || 'Sin proyecto'}</td>
-                <td>${v.cantidad}</td>
-                <td>$${(v.precioVenta || 0).toFixed(2)}</td>
-                <td>$${(v.costo || 0).toFixed(2)}</td>
-                <td class="${gan > 0 ? 'text-verde' : gan < 0 ? 'text-rojo' : ''}">$${gan.toFixed(2)}</td>
-                <td>${v.fecha}</td>
-                <td><button class="btn-sm btn-peligro" onclick="eliminarVenta('${v.id}')">🗑️</button></td>
+                <td data-label="Proyecto">${escapeHTML(v.proyectoNombre || 'Sin proyecto')}</td>
+                <td data-label="Cant.">${v.cantidad}</td>
+                <td data-label="Precio Venta">$${(v.precioVenta || 0).toFixed(2)}</td>
+                <td data-label="Costo">$${(v.costo || 0).toFixed(2)}</td>
+                <td data-label="Ganancia" class="${gan > 0 ? 'text-verde' : gan < 0 ? 'text-rojo' : ''}">$${gan.toFixed(2)}</td>
+                <td data-label="Fecha">${escapeHTML(v.fecha)}</td>
+                <td data-label="Acciones"><button class="btn-sm btn-peligro" onclick="eliminarVenta('${v.id}')">🗑️</button></td>
             </tr>`;
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#999;">Sin ventas registradas. Presioná "Registrar Venta".</td></tr>';
 
     document.getElementById('tfootVentas').innerHTML = todasLasVentas.length ? `
         <tr class="total-row">
-            <td><strong>TOTAL</strong></td>
-            <td><strong>${totalVendidos}</strong></td>
-            <td></td>
-            <td><strong>$${totalCostos.toFixed(2)}</strong></td>
-            <td class="${totalGanancia > 0 ? 'text-verde' : totalGanancia < 0 ? 'text-rojo' : ''}"><strong>$${totalGanancia.toFixed(2)}</strong></td>
-            <td></td><td></td>
+            <td data-label="Proyecto"><strong>TOTAL</strong></td>
+            <td data-label="Cant."><strong>${totalVendidos}</strong></td>
+            <td data-label="Precio Venta"></td>
+            <td data-label="Costo"><strong>$${totalCostos.toFixed(2)}</strong></td>
+            <td data-label="Ganancia" class="${totalGanancia > 0 ? 'text-verde' : totalGanancia < 0 ? 'text-rojo' : ''}"><strong>$${totalGanancia.toFixed(2)}</strong></td>
+            <td data-label="Fecha"></td><td data-label="Acciones"></td>
         </tr>` : '';
 }
 
 function cambiarVista(vista) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-activo'));
+    const etiquetas = { proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
     document.querySelectorAll('.tab').forEach(t => {
-        if (t.textContent.includes(vista === 'proyectos' ? 'Proyectos' : 'Ventas')) t.classList.add('tab-activo');
+        t.classList.toggle('tab-activo', t.textContent.includes(etiquetas[vista]));
     });
     document.getElementById('vistaProyectos').classList.toggle('hidden', vista !== 'proyectos');
     document.getElementById('vistaVentas').classList.toggle('hidden', vista !== 'ventas');
+    document.getElementById('vistaCalculadora').classList.toggle('hidden', vista !== 'calculadora');
     document.getElementById('btnNuevo').classList.toggle('hidden', vista !== 'proyectos');
     if (vista === 'ventas') renderVentas();
+    if (vista === 'calculadora') calcularPrecio();
+}
+
+/* --- Calculadora de costos --- */
+
+let ultimoTotalCalculado = 0;
+
+function calcularPrecio() {
+    const costoMaterial = parseFloat(document.getElementById('calcCostoMaterial').value) || 0;
+    const gramos = parseFloat(document.getElementById('calcGramos').value) || 0;
+    const horas = parseFloat(document.getElementById('calcHoras').value) || 0;
+    const kwh = parseFloat(document.getElementById('calcKwh').value) || 0;
+    const desgastePorHora = parseFloat(document.getElementById('calcDesgaste').value) || 0;
+
+    const energia = (90 / 1000) * kwh * horas;
+    const material = (costoMaterial / 1000) * gramos * 1.1;
+    const desgaste = horas * desgastePorHora;
+    const total = energia + material + desgaste;
+    ultimoTotalCalculado = total;
+
+    document.getElementById('calc-energia').textContent = '$' + energia.toFixed(2);
+    document.getElementById('calc-material').textContent = '$' + material.toFixed(2);
+    document.getElementById('calc-desgaste').textContent = '$' + desgaste.toFixed(2);
+    document.getElementById('calc-total').textContent = '$' + total.toFixed(2);
+}
+
+function usarComoCosto() {
+    document.getElementById('formTitle').textContent = 'Nuevo Proyecto';
+    document.getElementById('projectForm').reset();
+    document.getElementById('editId').value = '';
+    document.getElementById('costo').value = ultimoTotalCalculado.toFixed(2);
+    const marca = document.getElementById('calcMarca').value.trim();
+    if (marca) document.getElementById('nombre').value = marca;
+    cambiarVista('proyectos');
+    document.getElementById('formOverlay').classList.remove('hidden');
 }
 
 /* --- Formulario de ventas --- */
@@ -275,7 +321,7 @@ function cambiarVista(vista) {
 function mostrarFormVenta() {
     const select = document.getElementById('ventaProyecto');
     select.innerHTML = '<option value="">-- Seleccionar --</option>' +
-        todosProyectos.map(p => `<option value="${p.id}" data-costo="${p.costo || 0}" data-nombre="${p.nombre}">${p.nombre} (${p.codigo})</option>`).join('');
+        todosProyectos.map(p => `<option value="${p.id}" data-costo="${p.costo || 0}" data-nombre="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.codigo)})</option>`).join('');
     document.getElementById('ventaCantidad').value = '1';
     document.getElementById('ventaPrecio').value = '';
     document.getElementById('ventaCosto').value = '';

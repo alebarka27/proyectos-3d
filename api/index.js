@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', true);
 app.use(express.json());
 
 /* ---- Autenticacion (sesion por cookie firmada, sin estado en servidor) ---- */
@@ -53,10 +54,36 @@ function isAuthenticated(req) {
     return verifyToken(parseCookies(req)[COOKIE_NAME]);
 }
 
+/* ---- Rate limiting de login (en memoria, por IP) ---- */
+
+const loginAttempts = new Map();
+const LOGIN_WINDOW_MS = 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+
+function isRateLimited(ip) {
+    const entry = loginAttempts.get(ip);
+    return !!entry && entry.resetAt > Date.now() && entry.count >= LOGIN_MAX_ATTEMPTS;
+}
+
+function registerFailedLogin(ip) {
+    const now = Date.now();
+    const entry = loginAttempts.get(ip);
+    if (!entry || entry.resetAt < now) {
+        loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    } else {
+        entry.count++;
+    }
+}
+
 app.post('/api/login', (req, res) => {
+    if (isRateLimited(req.ip)) {
+        return res.status(429).json({ error: 'Demasiados intentos. Esperá un minuto.' });
+    }
     if ((req.body?.password || '') !== ADMIN_PASSWORD) {
+        registerFailedLogin(req.ip);
         return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
+    loginAttempts.delete(req.ip);
     const expires = Date.now() + SESSION_MAX_AGE;
     res.cookie(COOKIE_NAME, sign(String(expires)), {
         httpOnly: true,
@@ -79,6 +106,25 @@ app.use((req, res, next) => {
     if (authed) return next();
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
     return res.redirect('/login.html');
+});
+
+/* ---- CSRF: validar Origin en mutaciones a la API ---- */
+
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+
+app.use('/api', (req, res, next) => {
+    if (!MUTATING_METHODS.has(req.method)) return next();
+    const origin = req.headers.origin;
+    if (origin) {
+        try {
+            if (new URL(origin).host !== req.headers.host) {
+                return res.status(403).json({ error: 'Origen no permitido' });
+            }
+        } catch {
+            return res.status(403).json({ error: 'Origen no permitido' });
+        }
+    }
+    next();
 });
 
 const publicDir = path.join(__dirname, '..', 'public');
@@ -357,5 +403,8 @@ if (require.main === module) {
         process.exit(1);
     });
 }
+
+app._auth = { sign, verifyToken, parseCookies, isAuthenticated, COOKIE_NAME };
+app._rateLimit = { loginAttempts, isRateLimited, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS };
 
 module.exports = app;

@@ -169,6 +169,16 @@ td a:hover { text-decoration: underline; }
 .modal-venta select { width: 100%; padding: 10px 12px; margin-top: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); }
 .ganancia-preview { margin: 18px 0; padding: 14px; background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.15); border-radius: var(--radius-sm); text-align: center; font-size: 18px; color: var(--success); }
 
+/* --- Calculadora --- */
+
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.calc-form { background: var(--surface); border: 1px solid var(--border); padding: 24px; border-radius: var(--radius-lg); }
+.calc-form label { display: block; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+.calc-form input { width: 100%; padding: 10px 12px; margin-top: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); transition: border-color .15s; }
+.calc-form input:focus { outline: none; border-color: var(--border-strong); }
+.calc-resultado .stats { margin-bottom: 20px; }
+.calc-resultado .btn-primary { width: 100%; padding: 12px; font-size: 14px; }
+
 /* --- Login --- */
 
 .login-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); padding: 20px; }
@@ -203,5 +213,40 @@ td a:hover { text-decoration: underline; }
     .carpeta-activa { border: 1px solid var(--border-strong); border-right: none; }
     .sidebar-footer { margin-top: 0; margin-left: auto; padding: 0; border: none; flex-shrink: 0; }
     .main-content { padding: 18px; }
-    th, td { padding: 10px; font-size: 12.5px; }
+    .calc-grid { grid-template-columns: 1fr; }
+
+    /* Tablas -> tarjetas */
+    table { border: none; background: transparent; }
+    thead { display: none; }
+    tr {
+        display: block;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        margin-bottom: 10px;
+        overflow: hidden;
+    }
+    td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        text-align: right;
+        border-bottom: 1px solid var(--border);
+    }
+    tr td:last-child { border-bottom: none; }
+    td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-dim);
+        text-align: left;
+        text-transform: uppercase;
+        font-size: 10.5px;
+        letter-spacing: .5px;
+        flex-shrink: 0;
+    }
+    td[data-label="Acciones"] { justify-content: flex-end; }
+    td[data-label="Acciones"]::before { display: none; }
 }

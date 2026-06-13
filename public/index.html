@@ -32,6 +32,7 @@
                 <div class="tabs">
                     <button class="tab tab-activo" onclick="cambiarVista('proyectos')">📋 Proyectos</button>
                     <button class="tab" onclick="cambiarVista('ventas')">💰 Ventas</button>
+                    <button class="tab" onclick="cambiarVista('calculadora')">🧮 Calculadora</button>
                 </div>
                 <button id="btnNuevo" class="btn-primary">+ Nuevo Proyecto</button>
             </div>
@@ -141,6 +142,41 @@
                 </table>
             </div>
 
+            <div id="vistaCalculadora" class="hidden">
+                <h2 style="font-size:18px;margin-bottom:16px;">🧮 Calculadora de Costos de Impresión</h2>
+                <div class="calc-grid">
+                    <div class="calc-form">
+                        <label>Marca / Material <input type="text" id="calcMarca" placeholder="Ej: PLA Bambu Lab" oninput="calcularPrecio()"></label>
+                        <label>Costo del Material ($/kg) <input type="number" id="calcCostoMaterial" step="0.01" value="18500" oninput="calcularPrecio()"></label>
+                        <label>Gramos usados <input type="number" id="calcGramos" step="0.1" oninput="calcularPrecio()"></label>
+                        <label>Horas de impresión <input type="number" id="calcHoras" step="0.1" oninput="calcularPrecio()"></label>
+                        <label>Precio kWh ($) <input type="number" id="calcKwh" step="0.01" value="160" oninput="calcularPrecio()"></label>
+                        <label>Desgaste por hora ($) <input type="number" id="calcDesgaste" step="0.01" value="300" oninput="calcularPrecio()"></label>
+                    </div>
+                    <div class="calc-resultado">
+                        <div class="stats">
+                            <div class="stat-card">
+                                <span class="stat-label">Costo Energía</span>
+                                <span class="stat-value" id="calc-energia">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Costo Material</span>
+                                <span class="stat-value" id="calc-material">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Desgaste Máquina</span>
+                                <span class="stat-value" id="calc-desgaste">$0</span>
+                            </div>
+                            <div class="stat-card stat-destacado">
+                                <span class="stat-label">Total</span>
+                                <span class="stat-value" id="calc-total">$0</span>
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="usarComoCosto()">Usar como costo del proyecto</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="ventaOverlay" class="overlay hidden">
                 <div class="modal modal-venta">
                     <h2>Registrar Venta</h2>
@@ -164,6 +200,7 @@
         </main>
 
     </div>
+    <script src="utils.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
