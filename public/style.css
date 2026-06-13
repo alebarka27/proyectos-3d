@@ -238,6 +238,22 @@ td a:hover { text-decoration: underline; }
 .btn-whatsapp:active { transform: scale(.98); }
 .btn-whatsapp:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+.eshop-footer { max-width: 1200px; margin: 60px auto 0; padding-top: 28px; border-top: 1px solid var(--border); text-align: center; }
+.eshop-footer-text { color: var(--text-dim); font-size: 13px; margin-bottom: 14px; }
+.eshop-social { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.social-link {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-dim); text-decoration: none;
+    font-size: 13.5px; font-weight: 500;
+    padding: 8px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    transition: color .15s, border-color .15s, transform .1s;
+}
+.social-link:hover { color: var(--text); border-color: var(--border-strong); }
+.social-link:active { transform: scale(.98); }
+.social-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.social-link svg { flex-shrink: 0; }
+
 /* --- Responsive (used via ngrok on phone) --- */
 
 @media (max-width: 768px) {
