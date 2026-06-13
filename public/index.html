@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Proyectos 3D</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="layout" id="app">
+
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">Carpetas</h2>
+                <button class="btn-sidebar" onclick="mostrarGestionCarpetas()" title="Administrar carpetas">⚙️</button>
+            </div>
+            <div class="carpeta carpeta-activa" data-cat="" onclick="filtrar('')">
+                <span class="carpeta-icon">📁</span> Todos <span class="carpeta-count" id="count-todas">0</span>
+            </div>
+            <div id="listaCarpetas"></div>
+        </aside>
+
+        <main class="main-content">
+            <div class="top-bar">
+                <div class="tabs">
+                    <button class="tab tab-activo" onclick="cambiarVista('proyectos')">📋 Proyectos</button>
+                    <button class="tab" onclick="cambiarVista('ventas')">💰 Ventas</button>
+                </div>
+                <button id="btnNuevo" class="btn-primary">+ Nuevo Proyecto</button>
+            </div>
+
+            <div id="formOverlay" class="overlay hidden">
+                <div class="modal">
+                    <h2 id="formTitle">Nuevo Proyecto</h2>
+                    <form id="projectForm">
+                        <input type="hidden" id="editId">
+                        <label>Nombre <input type="text" id="nombre" required></label>
+                        <label>Código <input type="text" id="codigo" required></label>
+                        <label>Categoría
+                            <input type="text" id="categoria" list="catList" placeholder="Ej: Prototipos, Ventas, Regalos...">
+                            <datalist id="catList"></datalist>
+                        </label>
+                        <label>Link al archivo <input type="url" id="linkArchivo" placeholder="https://..."></label>
+                        <label>Costo ($) <input type="number" id="costo" step="0.01" placeholder="Costo de producción"></label>
+                        <label>Precio venta ($) <input type="number" id="precioVenta" step="0.01" placeholder="Precio al que se vende"></label>
+                        <label>Vendidos <input type="number" id="vendidos" step="1" placeholder="Cantidad vendida"></label>
+                        <label>Fotos (URLs, separadas por comas) <input type="text" id="fotos" placeholder="https://..., https://..."></label>
+                        <label>Estado
+                            <select id="estado">
+                                <option>Planificado</option>
+                                <option>Imprimiendo</option>
+                                <option>Terminado</option>
+                            </select>
+                        </label>
+                        <div class="form-actions">
+                            <button type="submit" id="btnGuardar" class="btn-primary">Guardar</button>
+                            <button type="button" id="btnCancelar" class="btn-secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="catOverlay" class="overlay hidden">
+                <div class="modal modal-cat">
+                    <h2>Administrar Carpetas</h2>
+                    <div class="cat-crear">
+                        <input type="text" id="nuevaCat" placeholder="Nombre de la carpeta">
+                        <button class="btn-primary" onclick="crearCarpeta()">+ Crear</button>
+                    </div>
+                    <div id="listaCatsAdmin"></div>
+                    <div class="form-actions">
+                        <button class="btn-secondary" onclick="cerrarGestionCarpetas()">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vistaProyectos">
+                <table id="tabla">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Código</th>
+                            <th>Categoría</th>
+                            <th>Link Archivo</th>
+                            <th>Costo</th>
+                            <th>Precio Vta</th>
+                            <th>Vend.</th>
+                            <th>Ganancia</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
+
+            <div id="vistaVentas" class="hidden">
+                <div class="top-bar">
+                    <h2 style="font-size:18px;">💰 Ventas y Ganancias</h2>
+                    <button class="btn-primary" onclick="mostrarFormVenta()">+ Registrar Venta</button>
+                </div>
+                <div class="stats">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Vendido</span>
+                        <span class="stat-value" id="stat-vendidos">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Ingresos</span>
+                        <span class="stat-value" id="stat-ingresos">$0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Costos</span>
+                        <span class="stat-value" id="stat-costos">$0</span>
+                    </div>
+                    <div class="stat-card stat-destacado">
+                        <span class="stat-label">Ganancia Total</span>
+                        <span class="stat-value" id="stat-ganancia">$0</span>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Cant.</th>
+                            <th>Precio Venta</th>
+                            <th>Costo</th>
+                            <th>Ganancia</th>
+                            <th>Fecha</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyVentas"></tbody>
+                    <tfoot id="tfootVentas"></tfoot>
+                </table>
+            </div>
+
+            <div id="ventaOverlay" class="overlay hidden">
+                <div class="modal modal-venta">
+                    <h2>Registrar Venta</h2>
+                    <form id="ventaForm">
+                        <label>Proyecto
+                            <select id="ventaProyecto" onchange="cargarCostoVenta()">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                        </label>
+                        <label>Cantidad <input type="number" id="ventaCantidad" value="1" min="1" step="1" oninput="calcGananciaVenta()"></label>
+                        <label>Precio venta ($) <input type="number" id="ventaPrecio" step="0.01" oninput="calcGananciaVenta()"></label>
+                        <label>Costo ($) <input type="number" id="ventaCosto" step="0.01" oninput="calcGananciaVenta()"></label>
+                        <div class="ganancia-preview">Ganancia: <strong id="ventaGananciaPreview">$0</strong></div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Guardar Venta</button>
+                            <button type="button" class="btn-secondary" onclick="cerrarFormVenta()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

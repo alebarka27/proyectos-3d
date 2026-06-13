@@ -1,0 +1,53 @@
+{
+  "proyectos": [
+    {
+      "id": "1781291132609",
+      "nombre": "gordo pelotudo",
+      "codigo": "C484 ",
+      "linkArchivo": "https://futbol-libres.su/",
+      "precio": "10000",
+      "fotos": "https://pbs.twimg.com/media/HKlVc03XYAEEDVV?format=jpg&name=small",
+      "estado": "Imprimiendo",
+      "fecha": "2026-06-12"
+    },
+    {
+      "id": "1781293599218",
+      "nombre": "Dragon Articulado para gordos",
+      "codigo": "DRG-001",
+      "categoria": "Juguetes",
+      "precio": "15",
+      "estado": "Planificado",
+      "fecha": "2026-06-12",
+      "linkArchivo": "",
+      "fotos": ""
+    },
+    {
+      "id": "1781293599454",
+      "nombre": "Soporte Celular garchado",
+      "codigo": "SPT-001",
+      "categoria": "Accesorios",
+      "precio": "999999",
+      "estado": "Terminado",
+      "fecha": "2026-06-12",
+      "linkArchivo": "",
+      "fotos": ""
+    }
+  ],
+  "categorias": [
+    "Accesorios",
+    "Juguetes",
+    "dadawdawdaw"
+  ],
+  "ventas": [
+    {
+      "id": "1781295155044",
+      "proyectoId": "1781291132609",
+      "proyectoNombre": "gordo pelotudo",
+      "cantidad": 2,
+      "precioVenta": 222,
+      "costo": 202,
+      "ganancia": 40,
+      "fecha": "2026-06-12"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+    "name": "proyectos-3d",
+    "version": "1.0.0",
+    "description": "Gestor de Proyectos 3D",
+    "main": "api/index.js",
+    "scripts": {
+        "start": "node api/index.js",
+        "dev": "vercel dev",
+        "build": "echo 'No build step required'"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "dependencies": {
+        "express": "^5.2.1",
+        "pg": "^8.13.3"
+    }
+}
