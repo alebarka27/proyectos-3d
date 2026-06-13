@@ -10,6 +10,10 @@
     <div class="layout" id="app">
 
         <aside class="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-dot"></span>
+                <span>Gestor 3D</span>
+            </div>
             <div class="sidebar-header">
                 <h2 class="sidebar-title">Carpetas</h2>
                 <button class="btn-sidebar" onclick="mostrarGestionCarpetas()" title="Administrar carpetas">⚙️</button>
@@ -18,6 +22,9 @@
                 <span class="carpeta-icon">📁</span> Todos <span class="carpeta-count" id="count-todas">0</span>
             </div>
             <div id="listaCarpetas"></div>
+            <div class="sidebar-footer">
+                <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+            </div>
         </aside>
 
         <main class="main-content">

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión — Gestor 3D</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <div class="login-brand">
+            <span class="brand-dot"></span>
+            <span>Gestor 3D</span>
+        </div>
+        <h1 class="login-title">Bienvenido</h1>
+        <p class="login-sub">Ingresá la contraseña para continuar</p>
+        <form id="loginForm">
+            <input type="password" id="password" placeholder="••••••••" required autofocus autocomplete="current-password">
+            <button type="submit" class="btn-primary">Entrar</button>
+            <p id="loginError" class="login-error hidden">Contraseña incorrecta</p>
+        </form>
+    </div>
+    <script src="login.js"></script>
+</body>
+</html>

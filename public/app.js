@@ -14,8 +14,22 @@ let catActual = '';
 let todosProyectos = [];
 let catsGuardadas = [];
 
+async function apiFetch(url, options) {
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+        window.location.href = '/login.html';
+        throw new Error('No autenticado');
+    }
+    return res;
+}
+
+async function logout() {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/login.html';
+}
+
 async function cargar() {
-    const [resP, resC, resV] = await Promise.all([fetch(API_PROY), fetch(API_CAT), fetch(API_VTA)]);
+    const [resP, resC, resV] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA)]);
     todosProyectos = await resP.json();
     catsGuardadas = await resC.json();
     todasLasVentas = await resV.json();
@@ -108,7 +122,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
     };
     const url = id ? `${API_PROY}/${id}` : API_PROY;
     const method = id ? 'PUT' : 'POST';
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     document.getElementById('formOverlay').classList.add('hidden');
     if (!id) catActual = data.categoria;
     cargar();
@@ -133,7 +147,7 @@ async function editar(id) {
 
 async function eliminar(id) {
     if (confirm('¿Eliminar este proyecto?')) {
-        await fetch(`${API_PROY}/${id}`, { method: 'DELETE' });
+        await apiFetch(`${API_PROY}/${id}`, { method: 'DELETE' });
         cargar();
     }
 }
@@ -164,7 +178,7 @@ async function renderCatsAdmin() {
 }
 
 async function cargarCatsGuardadas() {
-    const res = await fetch(API_CAT);
+    const res = await apiFetch(API_CAT);
     catsGuardadas = await res.json();
 }
 
@@ -172,7 +186,7 @@ async function crearCarpeta() {
     const input = document.getElementById('nuevaCat');
     const nombre = input.value.trim();
     if (!nombre) return;
-    const res = await fetch(API_CAT, {
+    const res = await apiFetch(API_CAT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre })
@@ -186,7 +200,7 @@ async function crearCarpeta() {
 async function renombrarCarpeta(viejo) {
     const nuevo = prompt('Nuevo nombre:', viejo);
     if (!nuevo || nuevo === viejo) return;
-    const res = await fetch(`${API_CAT}/${encodeURIComponent(viejo)}`, {
+    const res = await apiFetch(`${API_CAT}/${encodeURIComponent(viejo)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre: nuevo })
@@ -203,7 +217,7 @@ const API_VTA = '/api/ventas';
 let todasLasVentas = [];
 
 async function cargarVentas() {
-    const res = await fetch(API_VTA);
+    const res = await apiFetch(API_VTA);
     todasLasVentas = await res.json();
 }
 
@@ -301,7 +315,7 @@ document.getElementById('ventaForm').onsubmit = async (e) => {
         precioVenta: document.getElementById('ventaPrecio').value,
         costo: document.getElementById('ventaCosto').value,
     };
-    await fetch(API_VTA, {
+    await apiFetch(API_VTA, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -313,7 +327,7 @@ document.getElementById('ventaForm').onsubmit = async (e) => {
 
 async function eliminarVenta(id) {
     if (confirm('¿Eliminar esta venta?')) {
-        await fetch(`${API_VTA}/${id}`, { method: 'DELETE' });
+        await apiFetch(`${API_VTA}/${id}`, { method: 'DELETE' });
         await cargarVentas();
         renderVentas();
     }
@@ -321,7 +335,7 @@ async function eliminarVenta(id) {
 
 async function eliminarCarpeta(nombre) {
     if (!confirm(`¿Eliminar carpeta "${nombre}"? Los proyectos perderán esta categoría.`)) return;
-    await fetch(`${API_CAT}/${encodeURIComponent(nombre)}`, { method: 'DELETE' });
+    await apiFetch(`${API_CAT}/${encodeURIComponent(nombre)}`, { method: 'DELETE' });
     if (catActual === nombre) catActual = '';
     await renderCatsAdmin();
     cargar();

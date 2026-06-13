@@ -2,6 +2,7 @@ const express = require('express');
 const { sql } = require('@vercel/postgres');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // workaround: ensure no app.get('*') pattern for Express 5 compatibility
 
@@ -9,6 +10,76 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+/* ---- Autenticacion (sesion por cookie firmada, sin estado en servidor) ---- */
+
+const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const COOKIE_NAME = 'session';
+const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
+const PUBLIC_PATHS = new Set(['/login.html', '/login.js', '/style.css', '/app.js', '/api/login', '/api/logout']);
+
+function sign(value) {
+    const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
+    return `${value}.${hmac}`;
+}
+
+function verifyToken(token) {
+    if (!token) return false;
+    const sep = token.lastIndexOf('.');
+    if (sep === -1) return false;
+    const value = token.slice(0, sep);
+    const hmac = token.slice(sep + 1);
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
+    const a = Buffer.from(hmac);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+    return Date.now() < parseInt(value, 10);
+}
+
+function parseCookies(req) {
+    const header = req.headers.cookie;
+    const cookies = {};
+    if (!header) return cookies;
+    header.split(';').forEach(part => {
+        const idx = part.indexOf('=');
+        if (idx === -1) return;
+        cookies[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+    });
+    return cookies;
+}
+
+function isAuthenticated(req) {
+    return verifyToken(parseCookies(req)[COOKIE_NAME]);
+}
+
+app.post('/api/login', (req, res) => {
+    if ((req.body?.password || '') !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: 'Contraseña incorrecta' });
+    }
+    const expires = Date.now() + SESSION_MAX_AGE;
+    res.cookie(COOKIE_NAME, sign(String(expires)), {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: !!process.env.VERCEL,
+        maxAge: SESSION_MAX_AGE,
+    });
+    res.json({ ok: true });
+});
+
+app.post('/api/logout', (req, res) => {
+    res.clearCookie(COOKIE_NAME);
+    res.json({ ok: true });
+});
+
+app.use((req, res, next) => {
+    const authed = isAuthenticated(req);
+    if (req.path === '/login.html' && authed) return res.redirect('/');
+    if (PUBLIC_PATHS.has(req.path)) return next();
+    if (authed) return next();
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
+    return res.redirect('/login.html');
+});
 
 const publicDir = path.join(__dirname, '..', 'public');
 if (fs.existsSync(publicDir)) {
