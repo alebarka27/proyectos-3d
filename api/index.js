@@ -18,6 +18,27 @@ if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
 }
 
+let dbReady = false;
+let dbInitPromise = null;
+
+async function ensureDB() {
+    if (dbReady) return;
+    if (!dbInitPromise) {
+        dbInitPromise = initDB();
+    }
+    await dbInitPromise;
+    dbReady = true;
+}
+
+app.use(async (req, res, next) => {
+    try {
+        await ensureDB();
+        next();
+    } catch (err) {
+        res.status(500).json({ error: 'Error de base de datos: ' + err.message });
+    }
+});
+
 async function initDB() {
     const client = await pool.connect();
     try {
@@ -252,7 +273,9 @@ app.get('*', (req, res) => {
 });
 
 if (require.main === module) {
-    initDB().then(() => {
+    dbInitPromise = initDB();
+    dbInitPromise.then(() => {
+        dbReady = true;
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Servidor corriendo en http://localhost:${PORT}`);
         });
