@@ -117,6 +117,48 @@ async function isConnected() {
     return rows.length > 0 && !!rows[0].access_token;
 }
 
+async function getUserId() {
+    const { rows } = await sql`SELECT user_id FROM ml_tokens WHERE id = 'main'`;
+    return rows.length ? rows[0].user_id : 0;
+}
+
+async function searchItems(userId) {
+    const token = await getValidToken();
+    if (!token) throw new Error('ML no conectado');
+    const ids = [];
+    const limit = 100;
+    let offset = 0;
+    while (true) {
+        const res = await fetch(`${ML_API}/users/${userId}/items/search?offset=${offset}&limit=${limit}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Error al buscar publicaciones: ' + res.status);
+        const data = await res.json();
+        ids.push(...(data.results || []));
+        offset += limit;
+        if (!data.results?.length || offset >= (data.paging?.total || 0)) break;
+    }
+    return ids;
+}
+
+async function getItemsDetails(itemIds) {
+    const token = await getValidToken();
+    if (!token) throw new Error('ML no conectado');
+    const items = [];
+    for (let i = 0; i < itemIds.length; i += 20) {
+        const chunk = itemIds.slice(i, i + 20);
+        const res = await fetch(`${ML_API}/items?ids=${chunk.join(',')}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Error al obtener detalle de publicaciones: ' + res.status);
+        const data = await res.json();
+        for (const entry of data) {
+            if (entry.code === 200) items.push(entry.body);
+        }
+    }
+    return items;
+}
+
 async function updateItem(itemId, data) {
     const token = await getValidToken();
     if (!token) throw new Error('ML no conectado');
@@ -158,6 +200,9 @@ module.exports = {
     getAuthURL,
     exchangeCode,
     isConnected,
+    getUserId,
+    searchItems,
+    getItemsDetails,
     updateItem,
     getOrder,
     parseMLId,

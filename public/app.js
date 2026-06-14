@@ -515,16 +515,19 @@ async function checkMLStatus() {
         const dot = mlStatus.querySelector('.ml-dot');
         const label = document.getElementById('mlLabel');
         const btnConectar = document.getElementById('btnConectarML');
+        const btnImportar = document.getElementById('btnImportarML');
         const btnDesconectar = document.getElementById('btnDesconectarML');
         if (data.connected) {
             dot.className = 'ml-dot ml-connected';
             label.textContent = 'ML conectado';
             btnConectar.classList.add('hidden');
+            btnImportar.classList.remove('hidden');
             btnDesconectar.classList.remove('hidden');
         } else {
             dot.className = 'ml-dot ml-disconnected';
             label.textContent = 'ML desconectado';
             btnConectar.classList.remove('hidden');
+            btnImportar.classList.add('hidden');
             btnDesconectar.classList.add('hidden');
         }
     } catch {
@@ -543,6 +546,27 @@ async function desconectarML() {
         checkMLStatus();
     } catch {
         // ignore
+    }
+}
+
+async function importarML() {
+    const btn = document.getElementById('btnImportarML');
+    btn.disabled = true;
+    btn.textContent = 'Importando...';
+    try {
+        const res = await apiFetch('/api/ml/import', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al importar');
+        alert(`Se importaron ${data.importados} publicaciones nuevas (de ${data.total} encontradas en Mercado Libre). Quedaron como borrador, sin publicar en el eshop.`);
+        const resP = await apiFetch(API_PROY);
+        todosProyectos = await resP.json();
+        renderSidebar();
+        renderTabla();
+    } catch (err) {
+        alert('Error al importar: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Importar publicaciones';
     }
 }
 

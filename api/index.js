@@ -506,6 +506,35 @@ app.post('/api/proyectos/:id/ml-sync', async (req, res) => {
     }
 });
 
+app.post('/api/ml/import', async (req, res) => {
+    try {
+        const userId = await ml.getUserId();
+        if (!userId) return res.status(400).json({ error: 'ML no conectado' });
+        const itemIds = await ml.searchItems(userId);
+        const items = await ml.getItemsDetails(itemIds);
+
+        const { rows: existentes } = await sql`SELECT ml_id FROM proyectos WHERE ml_id != ''`;
+        const yaImportados = new Set(existentes.map(r => ml.parseMLId(r.ml_id)));
+
+        const fecha = new Date().toISOString().split('T')[0];
+        let importados = 0;
+        for (const item of items) {
+            if (yaImportados.has(item.id)) continue;
+            const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+            const foto = (item.thumbnail || '').replace('http://', 'https://');
+            await sql`
+                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id)
+                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${foto}, 'Terminado', ${fecha}, false, ${item.available_quantity || 0}, ${item.id})
+            `;
+            yaImportados.add(item.id);
+            importados++;
+        }
+        res.json({ ok: true, importados, total: items.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/ml/webhook', async (req, res) => {
     try {
         const { topic, resource } = req.body;
