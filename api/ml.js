@@ -145,6 +145,14 @@ async function getOrder(orderId) {
     return await res.json();
 }
 
+function parseMLId(valor) {
+    if (!valor) return '';
+    const match = valor.match(/MLA-?\d+/);
+    if (match) return match[0].replace('-', '');
+    if (/^\d+$/.test(valor.trim())) return 'MLA' + valor.trim();
+    return valor;
+}
+
 module.exports = {
     initMLTokens,
     getAuthURL,
@@ -152,4 +160,5 @@ module.exports = {
     isConnected,
     updateItem,
     getOrder,
+    parseMLId,
 };

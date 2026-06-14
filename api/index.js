@@ -494,7 +494,8 @@ app.post('/api/proyectos/:id/ml-sync', async (req, res) => {
         if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
         const p = rows[0];
         if (!p.ml_id) return res.status(400).json({ error: 'Este proyecto no tiene ml_id' });
-        const result = await ml.updateItem(p.ml_id, {
+        const itemId = ml.parseMLId(p.ml_id);
+        const result = await ml.updateItem(itemId, {
             price: p.precioventa,
             available_quantity: p.cantidad,
             status: p.estado === 'Cancelado' ? 'paused' : 'active',
@@ -514,7 +515,7 @@ app.post('/api/ml/webhook', async (req, res) => {
             const order = await ml.getOrder(orderId);
             for (const item of order.order_items || []) {
                 const mlItemId = item.item.id;
-                const { rows } = await sql`SELECT id FROM proyectos WHERE ml_id = ${mlItemId}`;
+                const { rows } = await sql`SELECT id FROM proyectos WHERE ml_id LIKE '%' || ${mlItemId} || '%'`;
                 if (rows.length) {
                     const pId = rows[0].id;
                     await sql`UPDATE proyectos SET cantidad = GREATEST(0, cantidad - 1) WHERE id = ${pId}`;
