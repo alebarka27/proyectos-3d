@@ -4,6 +4,12 @@ function formatearPrecio(n) {
     return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+function extraerMLId(valor) {
+    if (!valor) return '';
+    const match = valor.match(/MLA\d+/);
+    return match ? match[0] : valor;
+}
+
 async function cargarEshop() {
     const estado = document.getElementById('eshopEstado');
     const grid = document.getElementById('eshopGrid');
@@ -33,7 +39,7 @@ function renderProducto(p) {
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;
     const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
-    const mlUrl = p.ml_id ? `https://mercadolibre.com.ar/item/${escapeHTML(p.ml_id)}` : '';
+    const mlUrl = p.ml_id ? `https://mercadolibre.com.ar/item/${extraerMLId(p.ml_id)}` : '';
     return `
         <article class="product-card">
             <div class="product-img">${img}</div>

@@ -78,6 +78,12 @@ function ganancia(p) {
     return (venta - costo) * cant;
 }
 
+function extraerMLId(valor) {
+    if (!valor) return '';
+    const match = valor.match(/MLA\d+/);
+    return match ? match[0] : valor;
+}
+
 async function renderTienda() {
     const estado = document.getElementById('tiendaEstado');
     const grid = document.getElementById('tiendaGrid');
@@ -98,7 +104,7 @@ async function renderTienda() {
             const sinStock = !p.cantidad || p.cantidad <= 0;
             const precio = parseFloat(p.precioventa) || 0;
             const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
-            const mlUrl = p.ml_id ? `https://mercadolibre.com.ar/item/${escapeHTML(p.ml_id)}` : '';
+            const mlUrl = p.ml_id ? `https://mercadolibre.com.ar/item/${extraerMLId(p.ml_id)}` : '';
             return `
                 <article class="product-card">
                     <div class="product-img">${img}</div>
@@ -162,7 +168,7 @@ function renderTabla() {
                 <td data-label="Vend.">${vend || '-'}</td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
-                <td data-label="ML">${p.ml_id ? `<a href="https://mercadolibre.com.ar/item/${escapeHTML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">🔗 ML</a>` : '-'}</td>
+                <td data-label="ML">${p.ml_id ? `<a href="https://mercadolibre.com.ar/item/${extraerMLId(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">🔗 ML</a>` : '-'}</td>
                 <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? '🛍️ En tienda' : '📦 Publicar'}</button></td>
                 <td data-label="Acciones">
                     <button class="btn-sm" onclick="editar('${p.id}')">✏️</button>
@@ -203,7 +209,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         precioVenta: document.getElementById('precioVenta').value,
         vendidos: document.getElementById('vendidos').value,
         cantidad: document.getElementById('cantidad').value,
-        mlId: document.getElementById('mlId').value,
+        mlId: extraerMLId(document.getElementById('mlId').value),
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
         publicarEshop: document.getElementById('publicarEshop').checked,
