@@ -14,7 +14,8 @@ function extraerMLId(valor) {
 
 function urlML(id) {
     if (!id) return '';
-    return `https://articulo.mercadolibre.com.ar/MLA-${extraerMLId(id)}`;
+    if (id.startsWith('http')) return id;
+    return `https://articulo.mercadolibre.com.ar/${id}`;
 }
 
 async function cargarEshop() {
