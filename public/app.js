@@ -217,7 +217,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         precioVenta: document.getElementById('precioVenta').value,
         vendidos: document.getElementById('vendidos').value,
         cantidad: document.getElementById('cantidad').value,
-        mlId: extraerMLId(document.getElementById('mlId').value),
+        mlId: document.getElementById('mlId').value.trim(),
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
         publicarEshop: document.getElementById('publicarEshop').checked,
