@@ -105,15 +105,30 @@ function skeletonCards(n) {
 }
 
 async function renderTienda() {
+    if (busquedaAbortController) busquedaAbortController.abort();
+    clearTimeout(busquedaTimeout);
+    ocultarSugerencias();
     const estado = document.getElementById('tiendaEstado');
-    const grid = document.getElementById('tiendaGrid');
     estado.classList.add('hidden');
-    grid.classList.remove('hidden');
+    const home = document.getElementById('tiendaHome');
+    if (home) home.classList.remove('hidden');
+    const searchInput = document.getElementById('tiendaSearch');
+    if (searchInput) searchInput.value = '';
+    await renderHome();
+}
+
+async function renderHome() {
+    const home = document.getElementById('tiendaHome');
+    if (home) home.classList.remove('hidden');
+    renderCategoriasTienda();
+
+    const grid = document.getElementById('tiendaGrid');
     grid.innerHTML = skeletonCards(4);
+
     try {
-        const res = await fetch('/api/eshop');
-        const productos = await res.json();
-        if (!productos.length) {
+        const res = await fetch('/api/destacados');
+        const destacados = await res.json();
+        if (!destacados.length) {
             grid.innerHTML = `
                 <div class="empty-state">
                     ${icon('inbox', 'icon-lg')}
@@ -122,39 +137,7 @@ async function renderTienda() {
                 </div>`;
             return;
         }
-        grid.innerHTML = productos.map(p => {
-            const foto = (p.fotos || '').split(',')[0]?.trim();
-            const img = foto
-                ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
-                : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
-            const sinStock = !p.cantidad || p.cantidad <= 0;
-            const precio = parseFloat(p.precioventa) || 0;
-            const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
-            const mlUrl = urlML(p.ml_id);
-            return `
-                <article class="product-card">
-                    <div class="product-img">${img}</div>
-                    <div class="product-body">
-                        ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
-                        <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
-                        ${precio ? `
-                        <div class="precio-section">
-                            <span class="precio-simbolo">$</span>
-                            <span class="precio-monto">${formatearPrecio(precio)}</span>
-                        </div>` : ''}
-                        <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                            ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
-                        </div>
-                        <div class="product-botones">
-                            <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
-                                ${icon('chat')} WhatsApp
-                            </a>
-                            ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
-                        </div>
-                        ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">${icon('check')} Marcar vendido</button>` : ''}
-                    </div>
-                </article>`;
-        }).join('');
+        grid.innerHTML = destacados.map(p => renderProductCard(p)).join('');
     } catch {
         grid.innerHTML = `
             <div class="empty-state">
@@ -165,15 +148,236 @@ async function renderTienda() {
     }
 }
 
+async function renderCategoriasTienda() {
+    const container = document.getElementById('tiendaCategorias');
+    const res = await fetch('/api/eshop');
+    const prods = await res.json();
+    const cats = [...new Set(prods.map(p => p.categoria).filter(Boolean))].sort();
+    if (!cats.length) { container.innerHTML = ''; return; }
+    container.innerHTML = cats.map(c =>
+        `<button class="home-cat-btn" onclick="filtrarCatTienda('${escapeHTML(c)}')">${escapeHTML(c)}</button>`
+    ).join('');
+}
+
+async function filtrarCatTienda(cat) {
+    if (busquedaAbortController) busquedaAbortController.abort();
+    clearTimeout(busquedaTimeout);
+    ocultarSugerencias();
+    const home = document.getElementById('tiendaHome');
+    if (home) home.classList.add('hidden');
+    const searchInput = document.getElementById('tiendaSearch');
+    if (searchInput) searchInput.value = '';
+    const estado = document.getElementById('tiendaEstado');
+    const grid = document.getElementById('tiendaGrid');
+    grid.innerHTML = '<div class="loading-spinner">Cargando...</div>';
+    try {
+        const res = await fetch(`/api/eshop?categoria=${encodeURIComponent(cat)}`);
+        const productos = await res.json();
+        if (!productos.length) {
+            estado.textContent = 'No hay productos en esta categoría.';
+            estado.classList.remove('hidden');
+            grid.innerHTML = '';
+            return;
+        }
+        grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
+        estado.classList.add('hidden');
+    } catch {
+        grid.innerHTML = '';
+        estado.textContent = 'Error al cargar.';
+        estado.classList.remove('hidden');
+    }
+}
+
+/* --- Busqueda unificada (sugerencias + grilla) --- */
+
+let busquedaTimeout = null;
+let busquedaAbortController = null;
+let sugerenciaIndex = -1;
+
+function ocultarSugerencias() {
+    document.getElementById('searchSuggestions')?.classList.add('hidden');
+    sugerenciaIndex = -1;
+}
+
+function manejarBusqueda() {
+    const input = document.getElementById('tiendaSearch');
+    const q = input.value.trim();
+    const home = document.getElementById('tiendaHome');
+    const grid = document.getElementById('tiendaGrid');
+    const estado = document.getElementById('tiendaEstado');
+
+    ocultarSugerencias();
+    clearTimeout(busquedaTimeout);
+
+    if (!q) {
+        estado.classList.add('hidden');
+        if (home) home.classList.remove('hidden');
+        renderHome();
+        return;
+    }
+
+    if (home) home.classList.add('hidden');
+
+    grid.innerHTML = '<div class="loading-spinner">Buscando...</div>';
+    estado.classList.add('hidden');
+
+    busquedaTimeout = setTimeout(() => ejecutarBusqueda(q), 200);
+}
+
+async function ejecutarBusqueda(q) {
+    if (busquedaAbortController) busquedaAbortController.abort();
+    busquedaAbortController = new AbortController();
+
+    const grid = document.getElementById('tiendaGrid');
+    const estado = document.getElementById('tiendaEstado');
+
+    try {
+        const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`, {
+            signal: busquedaAbortController.signal,
+        });
+        const productos = await res.json();
+
+        const suggestions = document.getElementById('searchSuggestions');
+        if (productos.length) {
+            suggestions.innerHTML = productos.slice(0, 7).map((p, i) => {
+                const foto = (p.fotos || '').split(',')[0]?.trim();
+                const precio = parseFloat(p.precioventa) || 0;
+                return `
+                    <a class="search-suggestion-item" data-index="${i}" href="/producto.html?id=${encodeURIComponent(p.id)}">
+                        ${foto ? `<img src="${escapeHTML(safeHref(foto))}" alt="">` : `<div class="product-img-placeholder" style="width:36px;height:36px;">${icon('printer')}</div>`}
+                        <div class="search-suggestion-info">
+                            <div class="name">${escapeHTML(p.nombre)}</div>
+                            ${precio ? `<div class="price">$${formatearPrecio(precio)}</div>` : ''}
+                        </div>
+                    </a>`;
+            }).join('');
+            suggestions.classList.remove('hidden');
+            sugerenciaIndex = -1;
+        } else {
+            suggestions.innerHTML = `<div class="search-suggestion-item" style="cursor:default;color:var(--text-faint);justify-content:center;">Sin resultados para "${escapeHTML(q)}"</div>`;
+            suggestions.classList.remove('hidden');
+        }
+
+        grid.innerHTML = productos.length
+            ? productos.map(p => renderProductCard(p)).join('')
+            : '';
+        estado.classList.toggle('hidden', productos.length > 0);
+        if (!productos.length) estado.textContent = `No encontramos "${q}".`;
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        estado.textContent = 'Error al buscar.';
+        estado.classList.remove('hidden');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const suggestions = document.getElementById('searchSuggestions');
+    const searchBar = document.getElementById('searchBar');
+    if (suggestions && searchBar && !searchBar.contains(e.target)) {
+        ocultarSugerencias();
+    }
+});
+
+function navegarSugerencias(e) {
+    const suggestions = document.getElementById('searchSuggestions');
+    if (suggestions.classList.contains('hidden')) {
+        if (e.key === 'Escape') return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const input = document.getElementById('tiendaSearch');
+            const q = input.value.trim();
+            if (q) ejecutarBusqueda(q);
+        }
+        return;
+    }
+
+    const items = suggestions.querySelectorAll('.search-suggestion-item');
+    if (!items.length) return;
+
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault();
+            sugerenciaIndex = Math.min(sugerenciaIndex + 1, items.length - 1);
+            actualizarSugerenciaActiva(items);
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            if (sugerenciaIndex <= 0) {
+                sugerenciaIndex = -1;
+                document.getElementById('tiendaSearch').focus();
+                items.forEach(i => i.classList.remove('suggestion-active'));
+                return;
+            }
+            sugerenciaIndex = Math.max(sugerenciaIndex - 1, 0);
+            actualizarSugerenciaActiva(items);
+            break;
+        case 'Enter':
+            e.preventDefault();
+            if (sugerenciaIndex >= 0 && items[sugerenciaIndex]) {
+                items[sugerenciaIndex].click();
+            }
+            break;
+        case 'Escape':
+            e.preventDefault();
+            ocultarSugerencias();
+            document.getElementById('tiendaSearch').focus();
+            break;
+    }
+}
+
+function actualizarSugerenciaActiva(items) {
+    items.forEach((el, i) => {
+        el.classList.toggle('suggestion-active', i === sugerenciaIndex);
+    });
+    if (sugerenciaIndex >= 0 && items[sugerenciaIndex]) {
+        items[sugerenciaIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
+function renderProductCard(p) {
+    const foto = (p.fotos || '').split(',')[0]?.trim();
+    const img = foto
+        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
+        : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
+    const sinStock = !p.cantidad || p.cantidad <= 0;
+    const precio = parseFloat(p.precioventa) || 0;
+    const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
+    const mlUrl = urlML(p.ml_id);
+    return `
+        <article class="product-card">
+            <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
+                <div class="product-img">${img}</div>
+                <div class="product-body">
+                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                    <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
+                    ${precio ? `
+                    <div class="precio-section">
+                        <span class="precio-simbolo">$</span>
+                        <span class="precio-monto">${formatearPrecio(precio)}</span>
+                    </div>` : ''}
+                    <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
+                        ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
+                    </div>
+                </div>
+            </a>
+            <div class="product-body" style="padding-top:0;">
+                <div class="product-botones">
+                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                        ${icon('chat')} WhatsApp
+                    </a>
+                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
+                </div>
+                ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">${icon('check')} Marcar vendido</button>` : ''}
+            </div>
+        </article>`;
+}
+
+const WHATSAPP_NUMERO = '5491100000000';
+let tiendaTimeout = null;
+
 function formatearPrecio(n) {
     return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
-
-function getWhatsAppNumero() {
-    return '5491100000000';
-}
-
-const WHATSAPP_NUMERO = getWhatsAppNumero();
 
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 
@@ -254,6 +458,8 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         mlId: document.getElementById('mlId').value.trim(),
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
+        descripcion: document.getElementById('descripcion').value,
+        destacado: document.getElementById('destacadoCheck').checked,
         publicarEshop: document.getElementById('publicarEshop').checked,
     };
     const url = id ? `${API_PROY}/${id}` : API_PROY;
@@ -279,6 +485,8 @@ async function editar(id) {
     document.getElementById('cantidad').value = p.cantidad || '';
     document.getElementById('mlId').value = p.ml_id || '';
     document.getElementById('fotos').value = p.fotos || '';
+    document.getElementById('descripcion').value = p.descripcion || '';
+    document.getElementById('destacadoCheck').checked = !!p.destacado;
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
     document.getElementById('formOverlay').classList.remove('hidden');

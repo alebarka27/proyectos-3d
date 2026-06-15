@@ -32,7 +32,7 @@ test('GET / sin sesion sirve index.html (ahora publica)', async () => {
     const res = await fetch(`${baseUrl}/`);
     assert.strictEqual(res.status, 200);
     const text = await res.text();
-    assert.match(text, /<title>Gestor de Proyectos 3D/);
+    assert.match(text, /<title>Catálogo 3D by Aurora/);
 });
 
 test('GET /login.html es publico', async () => {
