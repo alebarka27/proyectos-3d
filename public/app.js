@@ -62,7 +62,7 @@ function renderSidebar() {
     datalist.innerHTML = todas.map(c => `<option value="${escapeHTML(c)}">`).join('');
     container.innerHTML = todas.map(c => `
         <div class="carpeta ${catActual === c ? 'carpeta-activa' : ''}" data-cat="${escapeHTML(c)}">
-            <span class="carpeta-icon">📂</span> ${escapeHTML(c)}
+            <span class="carpeta-icon">${icon('folder')}</span> ${escapeHTML(c)}
             <span class="carpeta-count">${todosProyectos.filter(p => p.categoria === c).length}</span>
         </div>
     `).join('');
@@ -92,23 +92,41 @@ function urlML(id) {
     return `https://articulo.mercadolibre.com.ar/${id}`;
 }
 
+function skeletonCards(n) {
+    return Array(n).fill(`
+        <div class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-body">
+                <div class="skeleton-line w-40"></div>
+                <div class="skeleton-line w-60"></div>
+                <div class="skeleton-line h-lg"></div>
+            </div>
+        </div>`).join('');
+}
+
 async function renderTienda() {
     const estado = document.getElementById('tiendaEstado');
     const grid = document.getElementById('tiendaGrid');
+    estado.classList.add('hidden');
+    grid.classList.remove('hidden');
+    grid.innerHTML = skeletonCards(4);
     try {
         const res = await fetch('/api/eshop');
         const productos = await res.json();
         if (!productos.length) {
-            estado.textContent = 'Todavía no hay productos en la tienda.';
-            estado.classList.remove('hidden');
-            grid.classList.add('hidden');
+            grid.innerHTML = `
+                <div class="empty-state">
+                    ${icon('inbox', 'icon-lg')}
+                    <p class="empty-state-title">Todavía no hay productos</p>
+                    <p class="empty-state-text">Pronto vamos a sumar diseños al catálogo.</p>
+                </div>`;
             return;
         }
         grid.innerHTML = productos.map(p => {
             const foto = (p.fotos || '').split(',')[0]?.trim();
             const img = foto
                 ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
-                : `<div class="product-img-placeholder">🖨️</div>`;
+                : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
             const sinStock = !p.cantidad || p.cantidad <= 0;
             const precio = parseFloat(p.precioventa) || 0;
             const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
@@ -129,18 +147,21 @@ async function renderTienda() {
                         </div>
                         <div class="product-botones">
                             <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
-                                💬 WhatsApp
+                                ${icon('chat')} WhatsApp
                             </a>
-                            ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">🛒 ML</a>` : ''}
+                            ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
                         </div>
-                        ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">✅ Marcar vendido</button>` : ''}
+                        ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">${icon('check')} Marcar vendido</button>` : ''}
                     </div>
                 </article>`;
         }).join('');
-        estado.classList.add('hidden');
-        grid.classList.remove('hidden');
     } catch {
-        estado.textContent = 'No se pudo cargar la tienda.';
+        grid.innerHTML = `
+            <div class="empty-state">
+                ${icon('warning', 'icon-lg')}
+                <p class="empty-state-title">No se pudo cargar la tienda</p>
+                <p class="empty-state-text">Recargá la página en unos segundos.</p>
+            </div>`;
     }
 }
 
@@ -159,6 +180,19 @@ const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 function renderTabla() {
     const filtrados = catActual ? todosProyectos.filter(p => p.categoria === catActual) : todosProyectos;
     const tbody = document.getElementById('tbody');
+    if (!filtrados.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="12">
+                    <div class="empty-state">
+                        ${icon('inbox', 'icon-lg')}
+                        <p class="empty-state-title">No hay proyectos${catActual ? ` en "${escapeHTML(catActual)}"` : ''}</p>
+                        <p class="empty-state-text">Creá uno nuevo con el botón "Nuevo Proyecto".</p>
+                    </div>
+                </td>
+            </tr>`;
+        return;
+    }
     tbody.innerHTML = filtrados.map(p => {
         const g = ganancia(p);
         const costo = parseFloat(p.costo) || 0;
@@ -170,17 +204,17 @@ function renderTabla() {
                 <td data-label="Nombre">${escapeHTML(p.nombre)}</td>
                 <td data-label="Código">${escapeHTML(p.codigo)}</td>
                 <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
-                <td data-label="Link Archivo">${p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">🔗 Archivo</a>` : '-'}</td>
+                <td data-label="Link Archivo">${p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '-'}</td>
                 <td data-label="Costo">${costo ? '$'+costo : '-'}</td>
                 <td data-label="Precio Vta">${pv ? '$'+pv : '-'}</td>
                 <td data-label="Vend.">${vend || '-'}</td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
-                <td data-label="ML">${p.ml_id ? `<a href="${urlML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">🔗 ML</a>` : '-'}</td>
-                <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? '🛍️ En tienda' : '📦 Publicar'}</button></td>
+                <td data-label="ML">${p.ml_id ? `<a href="${urlML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">${icon('link-external')} ML</a>` : '-'}</td>
+                <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? `${icon('bag')} En tienda` : `${icon('box')} Publicar`}</button></td>
                 <td data-label="Acciones">
-                    <button class="btn-sm" onclick="editar('${p.id}')">✏️</button>
-                    <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">🗑️</button>
+                    <button class="btn-sm" onclick="editar('${p.id}')">${icon('pencil')}</button>
+                    <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">${icon('trash')}</button>
                 </td>
             </tr>`;
     }).join('');
@@ -251,7 +285,7 @@ async function editar(id) {
 }
 
 async function eliminar(id) {
-    if (confirm('¿Eliminar este proyecto?')) {
+    if (await showConfirm('¿Eliminar este proyecto?', { danger: true })) {
         await apiFetch(`${API_PROY}/${id}`, { method: 'DELETE' });
         cargar();
     }
@@ -287,10 +321,10 @@ async function renderCatsAdmin() {
     const container = document.getElementById('listaCatsAdmin');
     container.innerHTML = catsGuardadas.map(c => `
         <div class="cat-admin-item" data-cat="${escapeHTML(c)}">
-            <span>📂 ${escapeHTML(c)}</span>
+            <span class="cat-admin-name">${icon('folder')} ${escapeHTML(c)}</span>
             <div>
-                <button class="btn-sm btn-renombrar">✏️</button>
-                <button class="btn-sm btn-peligro btn-eliminar-cat">🗑️</button>
+                <button class="btn-sm btn-renombrar">${icon('pencil')}</button>
+                <button class="btn-sm btn-peligro btn-eliminar-cat">${icon('trash')}</button>
             </div>
         </div>
     `).join('');
@@ -315,21 +349,21 @@ async function crearCarpeta() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre })
     });
-    if (!res.ok) { alert('Ya existe o nombre inválido'); return; }
+    if (!res.ok) { showToast('Ya existe o nombre inválido', 'error'); return; }
     input.value = '';
     await renderCatsAdmin();
     cargar();
 }
 
 async function renombrarCarpeta(viejo) {
-    const nuevo = prompt('Nuevo nombre:', viejo);
+    const nuevo = await showPrompt('Nuevo nombre:', viejo);
     if (!nuevo || nuevo === viejo) return;
     const res = await apiFetch(`${API_CAT}/${encodeURIComponent(viejo)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre: nuevo })
     });
-    if (!res.ok) { alert('Error al renombrar'); return; }
+    if (!res.ok) { showToast('Error al renombrar', 'error'); return; }
     await renderCatsAdmin();
     if (catActual === viejo) catActual = nuevo;
     cargar();
@@ -368,9 +402,18 @@ function renderVentas() {
                 <td data-label="Costo">$${(v.costo || 0).toFixed(2)}</td>
                 <td data-label="Ganancia" class="${gan > 0 ? 'text-verde' : gan < 0 ? 'text-rojo' : ''}">$${gan.toFixed(2)}</td>
                 <td data-label="Fecha">${escapeHTML(v.fecha)}</td>
-                <td data-label="Acciones"><button class="btn-sm btn-peligro" onclick="eliminarVenta('${v.id}')">🗑️</button></td>
+                <td data-label="Acciones"><button class="btn-sm btn-peligro" onclick="eliminarVenta('${v.id}')">${icon('trash')}</button></td>
             </tr>`;
-    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#999;">Sin ventas registradas. Presioná "Registrar Venta".</td></tr>';
+    }).join('') || `
+        <tr>
+            <td colspan="7">
+                <div class="empty-state">
+                    ${icon('inbox', 'icon-lg')}
+                    <p class="empty-state-title">Sin ventas registradas</p>
+                    <p class="empty-state-text">Presioná "Registrar Venta" para agregar la primera.</p>
+                </div>
+            </td>
+        </tr>`;
 
     document.getElementById('tfootVentas').innerHTML = todasLasVentas.length ? `
         <tr class="total-row">
@@ -489,7 +532,7 @@ document.getElementById('ventaForm').onsubmit = async (e) => {
 };
 
 async function eliminarVenta(id) {
-    if (confirm('¿Eliminar esta venta?')) {
+    if (await showConfirm('¿Eliminar esta venta?', { danger: true })) {
         await apiFetch(`${API_VTA}/${id}`, { method: 'DELETE' });
         await cargarVentas();
         renderVentas();
@@ -497,7 +540,7 @@ async function eliminarVenta(id) {
 }
 
 async function eliminarCarpeta(nombre) {
-    if (!confirm(`¿Eliminar carpeta "${nombre}"? Los proyectos perderán esta categoría.`)) return;
+    if (!(await showConfirm(`¿Eliminar carpeta "${nombre}"? Los proyectos perderán esta categoría.`, { danger: true }))) return;
     await apiFetch(`${API_CAT}/${encodeURIComponent(nombre)}`, { method: 'DELETE' });
     if (catActual === nombre) catActual = '';
     await renderCatsAdmin();
@@ -540,7 +583,7 @@ function conectarML() {
 }
 
 async function desconectarML() {
-    if (!confirm('¿Desconectar Mercado Libre?')) return;
+    if (!(await showConfirm('¿Desconectar Mercado Libre?'))) return;
     try {
         await apiFetch('/api/ml/disconnect', { method: 'POST' });
         checkMLStatus();
@@ -557,13 +600,13 @@ async function importarML() {
         const res = await apiFetch('/api/ml/import', { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al importar');
-        alert(`Se importaron ${data.importados} publicaciones nuevas (de ${data.total} encontradas en Mercado Libre). Quedaron como borrador, sin publicar en el eshop.`);
+        showToast(`Se importaron ${data.importados} publicaciones nuevas (de ${data.total} encontradas en Mercado Libre). Quedaron como borrador, sin publicar en el eshop.`, 'success');
         const resP = await apiFetch(API_PROY);
         todosProyectos = await resP.json();
         renderSidebar();
         renderTabla();
     } catch (err) {
-        alert('Error al importar: ' + err.message);
+        showToast('Error al importar: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
         btn.textContent = 'Importar publicaciones';

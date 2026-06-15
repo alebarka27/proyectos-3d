@@ -18,24 +18,47 @@ function urlML(id) {
     return `https://articulo.mercadolibre.com.ar/${id}`;
 }
 
+function skeletonCards(n) {
+    return Array(n).fill(`
+        <div class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-body">
+                <div class="skeleton-line w-40"></div>
+                <div class="skeleton-line w-60"></div>
+                <div class="skeleton-line h-lg"></div>
+            </div>
+        </div>`).join('');
+}
+
 async function cargarEshop() {
     const estado = document.getElementById('eshopEstado');
     const grid = document.getElementById('eshopGrid');
+    estado.classList.add('hidden');
+    grid.classList.remove('hidden');
+    grid.innerHTML = skeletonCards(6);
     try {
         const res = await fetch('/api/eshop');
         if (!res.ok) throw new Error('Error al cargar');
         const productos = await res.json();
 
         if (!productos.length) {
-            estado.textContent = 'Todavía no hay productos publicados en el catálogo.';
+            grid.innerHTML = `
+                <div class="empty-state">
+                    ${icon('inbox', 'icon-lg')}
+                    <p class="empty-state-title">Todavía no hay productos</p>
+                    <p class="empty-state-text">Pronto vamos a sumar diseños al catálogo.</p>
+                </div>`;
             return;
         }
 
         grid.innerHTML = productos.map(renderProducto).join('');
-        estado.classList.add('hidden');
-        grid.classList.remove('hidden');
     } catch {
-        estado.textContent = 'No se pudo cargar el catálogo. Probá de nuevo en un momento.';
+        grid.innerHTML = `
+            <div class="empty-state">
+                ${icon('warning', 'icon-lg')}
+                <p class="empty-state-title">No se pudo cargar el catálogo</p>
+                <p class="empty-state-text">Probá de nuevo en un momento.</p>
+            </div>`;
     }
 }
 
@@ -43,7 +66,7 @@ function renderProducto(p) {
     const foto = (p.fotos || '').split(',')[0]?.trim();
     const img = foto
         ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
-        : `<div class="product-img-placeholder">🖨️</div>`;
+        : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;
     const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
@@ -64,9 +87,9 @@ function renderProducto(p) {
                 </div>
                 <div class="product-botones">
                     <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
-                        💬 WhatsApp
+                        ${icon('chat')} WhatsApp
                     </a>
-                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">🛒 ML</a>` : ''}
+                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
                 </div>
             </div>
         </article>`;
