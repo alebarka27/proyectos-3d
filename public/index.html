@@ -218,8 +218,8 @@
                     </div>
 
                     <div class="search-bar" id="searchBar" style="margin-bottom:24px;">
-                        <input type="text" id="tiendaSearch" placeholder="Buscá productos..." oninput="buscarTienda();buscarSugerencias(this.value)" autocomplete="off">
-                        <button onclick="buscarTienda()">Buscar</button>
+                        <input type="text" id="tiendaSearch" placeholder="Buscá productos..." oninput="manejarBusqueda()" onkeydown="navegarSugerencias(event)" autocomplete="off">
+                        <button onclick="manejarBusqueda()">Buscar</button>
                         <div id="searchSuggestions" class="search-suggestions hidden"></div>
                     </div>
 

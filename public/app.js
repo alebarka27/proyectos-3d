@@ -93,6 +93,9 @@ function urlML(id) {
 }
 
 async function renderTienda() {
+    if (busquedaAbortController) busquedaAbortController.abort();
+    clearTimeout(busquedaTimeout);
+    ocultarSugerencias();
     const estado = document.getElementById('tiendaEstado');
     estado.classList.add('hidden');
     const home = document.getElementById('tiendaHome');
@@ -133,6 +136,9 @@ async function renderCategoriasTienda() {
 }
 
 async function filtrarCatTienda(cat) {
+    if (busquedaAbortController) busquedaAbortController.abort();
+    clearTimeout(busquedaTimeout);
+    ocultarSugerencias();
     const home = document.getElementById('tiendaHome');
     if (home) home.classList.add('hidden');
     const searchInput = document.getElementById('tiendaSearch');
@@ -158,16 +164,29 @@ async function filtrarCatTienda(cat) {
     }
 }
 
-async function buscarTienda() {
+/* --- Busqueda unificada (sugerencias + grilla) --- */
+
+let busquedaTimeout = null;
+let busquedaAbortController = null;
+let sugerenciaIndex = -1;
+
+function ocultarSugerencias() {
+    document.getElementById('searchSuggestions')?.classList.add('hidden');
+    sugerenciaIndex = -1;
+}
+
+function manejarBusqueda() {
     const input = document.getElementById('tiendaSearch');
     const q = input.value.trim();
     const home = document.getElementById('tiendaHome');
-    const estado = document.getElementById('tiendaEstado');
     const grid = document.getElementById('tiendaGrid');
+    const estado = document.getElementById('tiendaEstado');
 
-    document.getElementById('searchSuggestions')?.classList.add('hidden');
+    ocultarSugerencias();
+    clearTimeout(busquedaTimeout);
 
     if (!q) {
+        estado.classList.add('hidden');
         if (home) home.classList.remove('hidden');
         renderHome();
         return;
@@ -175,47 +194,55 @@ async function buscarTienda() {
 
     if (home) home.classList.add('hidden');
 
-    clearTimeout(tiendaTimeout);
-    tiendaTimeout = setTimeout(async () => {
-        try {
-            const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`);
-            const productos = await res.json();
-            if (!productos.length) {
-                estado.textContent = `No encontramos "${q}".`;
-                estado.classList.remove('hidden');
-                grid.innerHTML = '';
-                return;
-            }
-            grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
-            estado.classList.add('hidden');
-        } catch {
-            estado.textContent = 'Error al buscar.';
-        }
-    }, 300);
+    grid.innerHTML = '<div class="loading-spinner">Buscando...</div>';
+    estado.classList.add('hidden');
+
+    busquedaTimeout = setTimeout(() => ejecutarBusqueda(q), 200);
 }
 
-async function buscarSugerencias(valor) {
-    const suggestions = document.getElementById('searchSuggestions');
-    if (valor.trim().length < 2) { suggestions.classList.add('hidden'); return; }
+async function ejecutarBusqueda(q) {
+    if (busquedaAbortController) busquedaAbortController.abort();
+    busquedaAbortController = new AbortController();
+
+    const grid = document.getElementById('tiendaGrid');
+    const estado = document.getElementById('tiendaEstado');
+
     try {
-        const res = await fetch(`/api/buscar?q=${encodeURIComponent(valor)}`);
-        const prods = await res.json();
-        if (!prods.length) { suggestions.classList.add('hidden'); return; }
-        suggestions.innerHTML = prods.slice(0, 9).map(p => {
-            const foto = (p.fotos || '').split(',')[0]?.trim();
-            const precio = parseFloat(p.precioventa) || 0;
-            return `
-                <a class="search-suggestion-item" href="/producto.html?id=${encodeURIComponent(p.id)}">
-                    ${foto ? `<img src="${escapeHTML(safeHref(foto))}" alt="">` : '<div class="product-img-placeholder" style="width:36px;height:36px;font-size:18px;">🖨️</div>'}
-                    <div class="search-suggestion-info">
-                        <div class="name">${escapeHTML(p.nombre)}</div>
-                        ${precio ? `<div class="price">$${formatearPrecio(precio)}</div>` : ''}
-                    </div>
-                </a>`;
-        }).join('');
-        suggestions.classList.remove('hidden');
-    } catch {
-        suggestions.classList.add('hidden');
+        const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`, {
+            signal: busquedaAbortController.signal,
+        });
+        const productos = await res.json();
+
+        const suggestions = document.getElementById('searchSuggestions');
+        if (productos.length) {
+            suggestions.innerHTML = productos.slice(0, 7).map((p, i) => {
+                const foto = (p.fotos || '').split(',')[0]?.trim();
+                const precio = parseFloat(p.precioventa) || 0;
+                return `
+                    <a class="search-suggestion-item" data-index="${i}" href="/producto.html?id=${encodeURIComponent(p.id)}">
+                        ${foto ? `<img src="${escapeHTML(safeHref(foto))}" alt="">` : '<div class="product-img-placeholder" style="width:36px;height:36px;font-size:18px;">🖨️</div>'}
+                        <div class="search-suggestion-info">
+                            <div class="name">${escapeHTML(p.nombre)}</div>
+                            ${precio ? `<div class="price">$${formatearPrecio(precio)}</div>` : ''}
+                        </div>
+                    </a>`;
+            }).join('');
+            suggestions.classList.remove('hidden');
+            sugerenciaIndex = -1;
+        } else {
+            suggestions.innerHTML = `<div class="search-suggestion-item" style="cursor:default;color:var(--text-faint);justify-content:center;">Sin resultados para "${escapeHTML(q)}"</div>`;
+            suggestions.classList.remove('hidden');
+        }
+
+        grid.innerHTML = productos.length
+            ? productos.map(p => renderProductCard(p)).join('')
+            : '';
+        estado.classList.toggle('hidden', productos.length > 0);
+        if (!productos.length) estado.textContent = `No encontramos "${q}".`;
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        estado.textContent = 'Error al buscar.';
+        estado.classList.remove('hidden');
     }
 }
 
@@ -223,12 +250,64 @@ document.addEventListener('click', (e) => {
     const suggestions = document.getElementById('searchSuggestions');
     const searchBar = document.getElementById('searchBar');
     if (suggestions && searchBar && !searchBar.contains(e.target)) {
-        suggestions.classList.add('hidden');
+        ocultarSugerencias();
     }
 });
 
-function ocultarSugerencias() {
-    document.getElementById('searchSuggestions')?.classList.add('hidden');
+function navegarSugerencias(e) {
+    const suggestions = document.getElementById('searchSuggestions');
+    if (suggestions.classList.contains('hidden')) {
+        if (e.key === 'Escape') return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const input = document.getElementById('tiendaSearch');
+            const q = input.value.trim();
+            if (q) ejecutarBusqueda(q);
+        }
+        return;
+    }
+
+    const items = suggestions.querySelectorAll('.search-suggestion-item');
+    if (!items.length) return;
+
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault();
+            sugerenciaIndex = Math.min(sugerenciaIndex + 1, items.length - 1);
+            actualizarSugerenciaActiva(items);
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            if (sugerenciaIndex <= 0) {
+                sugerenciaIndex = -1;
+                document.getElementById('tiendaSearch').focus();
+                items.forEach(i => i.classList.remove('suggestion-active'));
+                return;
+            }
+            sugerenciaIndex = Math.max(sugerenciaIndex - 1, 0);
+            actualizarSugerenciaActiva(items);
+            break;
+        case 'Enter':
+            e.preventDefault();
+            if (sugerenciaIndex >= 0 && items[sugerenciaIndex]) {
+                items[sugerenciaIndex].click();
+            }
+            break;
+        case 'Escape':
+            e.preventDefault();
+            ocultarSugerencias();
+            document.getElementById('tiendaSearch').focus();
+            break;
+    }
+}
+
+function actualizarSugerenciaActiva(items) {
+    items.forEach((el, i) => {
+        el.classList.toggle('suggestion-active', i === sugerenciaIndex);
+    });
+    if (sugerenciaIndex >= 0 && items[sugerenciaIndex]) {
+        items[sugerenciaIndex].scrollIntoView({ block: 'nearest' });
+    }
 }
 
 function renderProductCard(p) {

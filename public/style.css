@@ -506,8 +506,13 @@ td a:hover { text-decoration: underline; }
     text-decoration: none;
     color: var(--text);
 }
-.search-suggestion-item:hover {
+.search-suggestion-item:hover,
+.search-suggestion-item.suggestion-active {
     background: var(--surface-2);
+}
+.search-suggestion-item.suggestion-active {
+    background: var(--border);
+    outline: 1px solid var(--border-strong);
 }
 .search-suggestion-item img {
     width: 36px;
