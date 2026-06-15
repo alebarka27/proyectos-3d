@@ -19,7 +19,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const COOKIE_NAME = 'session';
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
-const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/api/login', '/api/logout', '/api/me', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop']);
+const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/api/login', '/api/logout', '/api/me', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop', '/producto.html', '/producto.js', '/faq.html', '/nosotros.html', '/api/destacados', '/api/buscar', '/api/producto']);
 
 function sign(value) {
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
@@ -108,6 +108,7 @@ app.use((req, res, next) => {
     const authed = isAuthenticated(req);
     if (req.path === '/login.html' && authed) return res.redirect('/');
     if (PUBLIC_PATHS.has(req.path)) return next();
+    if (req.path.startsWith('/api/producto/')) return next();
     if (authed) return next();
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
     return res.redirect('/login.html');
@@ -165,6 +166,8 @@ async function initDB() {
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS publicareshop BOOLEAN DEFAULT FALSE;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS cantidad INTEGER DEFAULT 0;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS ml_id TEXT DEFAULT '';`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS descripcion TEXT DEFAULT '';`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS destacado BOOLEAN DEFAULT FALSE;`;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -265,13 +268,13 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado)
             VALUES (${id}, ${nombre || ''}, ${codigo || ''}, ${categoria || ''}, ${linkArchivo || ''},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
-                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''})
+                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -282,14 +285,15 @@ app.post('/api/proyectos', async (req, res) => {
 
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado } = req.body;
         const { rowCount } = await sql`
             UPDATE proyectos SET
                 nombre=${nombre || ''}, codigo=${codigo || ''}, categoria=${categoria || ''},
                 linkarchivo=${linkArchivo || ''}, costo=${parseFloat(costo) || 0},
                 precioventa=${parseFloat(precioVenta) || 0}, vendidos=${parseInt(vendidos) || 0},
                 fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
-                cantidad=${parseInt(cantidad) || 0}, ml_id=${mlId || ''}
+                cantidad=${parseInt(cantidad) || 0}, ml_id=${mlId || ''},
+                descripcion=${descripcion || ''}, destacado=${!!destacado}
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -344,12 +348,66 @@ app.patch('/api/proyectos/:id/vender', async (req, res) => {
 
 app.get('/api/eshop', async (req, res) => {
     try {
+        const { categoria } = req.query;
+        let query = sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true`;
+        if (categoria) query = sql`${query} AND categoria = ${categoria}`;
+        query = sql`${query} ORDER BY nombre`;
+        const { rows } = await query;
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/destacados', async (req, res) => {
+    try {
         const { rows } = await sql`
             SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos
             WHERE publicareshop = true
-            ORDER BY nombre
+            ORDER BY vendidos DESC, destacado DESC
+            LIMIT 8
         `;
         res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/buscar', async (req, res) => {
+    try {
+        const { q, categoria } = req.query;
+        if (!q || q.trim().length < 1) return res.json([]);
+        const term = `%${q.trim()}%`;
+        let query = sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term})`;
+        if (categoria) query = sql`${query} AND categoria = ${categoria}`;
+        query = sql`${query} ORDER BY nombre LIMIT 20`;
+        const { rows } = await query;
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/producto/:id', async (req, res) => {
+    try {
+        const { rows } = await sql`
+            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado FROM proyectos
+            WHERE id = ${req.params.id} AND publicareshop = true
+        `;
+        if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+
+        const p = rows[0];
+        let similares = [];
+        if (p.categoria) {
+            const { rows: sim } = await sql`
+                SELECT id, nombre, fotos, precioventa FROM proyectos
+                WHERE publicareshop = true AND categoria = ${p.categoria} AND id != ${p.id}
+                ORDER BY RANDOM() LIMIT 4
+            `;
+            similares = sim;
+        }
+
+        res.json({ producto: p, similares });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -563,6 +621,18 @@ app.post('/api/ml/webhook', async (req, res) => {
         console.error('ML webhook error:', err);
         res.sendStatus(200);
     }
+});
+
+app.get('/producto.html', (req, res) => {
+    res.sendFile(path.join(publicDir, 'producto.html'));
+});
+
+app.get('/faq.html', (req, res) => {
+    res.sendFile(path.join(publicDir, 'faq.html'));
+});
+
+app.get('/nosotros.html', (req, res) => {
+    res.sendFile(path.join(publicDir, 'nosotros.html'));
 });
 
 app.use((req, res) => {

@@ -94,65 +94,187 @@ function urlML(id) {
 
 async function renderTienda() {
     const estado = document.getElementById('tiendaEstado');
+    estado.classList.add('hidden');
+    const home = document.getElementById('tiendaHome');
+    if (home) home.classList.remove('hidden');
+    const searchInput = document.getElementById('tiendaSearch');
+    if (searchInput) searchInput.value = '';
+    await renderHome();
+}
+
+async function renderHome() {
+    const home = document.getElementById('tiendaHome');
+    if (home) home.classList.remove('hidden');
+    renderCategoriasTienda();
+
     const grid = document.getElementById('tiendaGrid');
+    grid.innerHTML = '<div class="loading-spinner">Cargando destacados...</div>';
+
     try {
-        const res = await fetch('/api/eshop');
-        const productos = await res.json();
-        if (!productos.length) {
-            estado.textContent = 'Todavía no hay productos en la tienda.';
-            estado.classList.remove('hidden');
-            grid.classList.add('hidden');
-            return;
-        }
-        grid.innerHTML = productos.map(p => {
-            const foto = (p.fotos || '').split(',')[0]?.trim();
-            const img = foto
-                ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
-                : `<div class="product-img-placeholder">🖨️</div>`;
-            const sinStock = !p.cantidad || p.cantidad <= 0;
-            const precio = parseFloat(p.precioventa) || 0;
-            const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
-            const mlUrl = urlML(p.ml_id);
-            return `
-                <article class="product-card">
-                    <div class="product-img">${img}</div>
-                    <div class="product-body">
-                        ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
-                        <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
-                        ${precio ? `
-                        <div class="precio-section">
-                            <span class="precio-simbolo">$</span>
-                            <span class="precio-monto">${formatearPrecio(precio)}</span>
-                        </div>` : ''}
-                        <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                            ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
-                        </div>
-                        <div class="product-botones">
-                            <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
-                                💬 WhatsApp
-                            </a>
-                            ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">🛒 ML</a>` : ''}
-                        </div>
-                        ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">✅ Marcar vendido</button>` : ''}
-                    </div>
-                </article>`;
-        }).join('');
-        estado.classList.add('hidden');
-        grid.classList.remove('hidden');
+        const res = await fetch('/api/destacados');
+        const destacados = await res.json();
+        grid.innerHTML = destacados.length
+            ? destacados.map(p => renderProductCard(p)).join('')
+            : '<p style="color:var(--text-dim);text-align:center;padding:40px 0;">Todavía no hay productos destacados.</p>';
     } catch {
-        estado.textContent = 'No se pudo cargar la tienda.';
+        grid.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:40px 0;">No se pudieron cargar los productos.</p>';
     }
 }
+
+async function renderCategoriasTienda() {
+    const container = document.getElementById('tiendaCategorias');
+    const res = await fetch('/api/eshop');
+    const prods = await res.json();
+    const cats = [...new Set(prods.map(p => p.categoria).filter(Boolean))].sort();
+    if (!cats.length) { container.innerHTML = ''; return; }
+    container.innerHTML = cats.map(c =>
+        `<button class="home-cat-btn" onclick="filtrarCatTienda('${escapeHTML(c)}')">${escapeHTML(c)}</button>`
+    ).join('');
+}
+
+async function filtrarCatTienda(cat) {
+    const home = document.getElementById('tiendaHome');
+    if (home) home.classList.add('hidden');
+    const searchInput = document.getElementById('tiendaSearch');
+    if (searchInput) searchInput.value = '';
+    const estado = document.getElementById('tiendaEstado');
+    const grid = document.getElementById('tiendaGrid');
+    grid.innerHTML = '<div class="loading-spinner">Cargando...</div>';
+    try {
+        const res = await fetch(`/api/eshop?categoria=${encodeURIComponent(cat)}`);
+        const productos = await res.json();
+        if (!productos.length) {
+            estado.textContent = 'No hay productos en esta categoría.';
+            estado.classList.remove('hidden');
+            grid.innerHTML = '';
+            return;
+        }
+        grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
+        estado.classList.add('hidden');
+    } catch {
+        grid.innerHTML = '';
+        estado.textContent = 'Error al cargar.';
+        estado.classList.remove('hidden');
+    }
+}
+
+async function buscarTienda() {
+    const input = document.getElementById('tiendaSearch');
+    const q = input.value.trim();
+    const home = document.getElementById('tiendaHome');
+    const estado = document.getElementById('tiendaEstado');
+    const grid = document.getElementById('tiendaGrid');
+
+    document.getElementById('searchSuggestions')?.classList.add('hidden');
+
+    if (!q) {
+        if (home) home.classList.remove('hidden');
+        renderHome();
+        return;
+    }
+
+    if (home) home.classList.add('hidden');
+
+    clearTimeout(tiendaTimeout);
+    tiendaTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`);
+            const productos = await res.json();
+            if (!productos.length) {
+                estado.textContent = `No encontramos "${q}".`;
+                estado.classList.remove('hidden');
+                grid.innerHTML = '';
+                return;
+            }
+            grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
+            estado.classList.add('hidden');
+        } catch {
+            estado.textContent = 'Error al buscar.';
+        }
+    }, 300);
+}
+
+async function buscarSugerencias(valor) {
+    const suggestions = document.getElementById('searchSuggestions');
+    if (valor.trim().length < 2) { suggestions.classList.add('hidden'); return; }
+    try {
+        const res = await fetch(`/api/buscar?q=${encodeURIComponent(valor)}`);
+        const prods = await res.json();
+        if (!prods.length) { suggestions.classList.add('hidden'); return; }
+        suggestions.innerHTML = prods.slice(0, 9).map(p => {
+            const foto = (p.fotos || '').split(',')[0]?.trim();
+            const precio = parseFloat(p.precioventa) || 0;
+            return `
+                <a class="search-suggestion-item" href="/producto.html?id=${encodeURIComponent(p.id)}">
+                    ${foto ? `<img src="${escapeHTML(safeHref(foto))}" alt="">` : '<div class="product-img-placeholder" style="width:36px;height:36px;font-size:18px;">🖨️</div>'}
+                    <div class="search-suggestion-info">
+                        <div class="name">${escapeHTML(p.nombre)}</div>
+                        ${precio ? `<div class="price">$${formatearPrecio(precio)}</div>` : ''}
+                    </div>
+                </a>`;
+        }).join('');
+        suggestions.classList.remove('hidden');
+    } catch {
+        suggestions.classList.add('hidden');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const suggestions = document.getElementById('searchSuggestions');
+    const searchBar = document.getElementById('searchBar');
+    if (suggestions && searchBar && !searchBar.contains(e.target)) {
+        suggestions.classList.add('hidden');
+    }
+});
+
+function ocultarSugerencias() {
+    document.getElementById('searchSuggestions')?.classList.add('hidden');
+}
+
+function renderProductCard(p) {
+    const foto = (p.fotos || '').split(',')[0]?.trim();
+    const img = foto
+        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
+        : `<div class="product-img-placeholder">🖨️</div>`;
+    const sinStock = !p.cantidad || p.cantidad <= 0;
+    const precio = parseFloat(p.precioventa) || 0;
+    const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
+    const mlUrl = urlML(p.ml_id);
+    return `
+        <article class="product-card">
+            <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
+                <div class="product-img">${img}</div>
+                <div class="product-body">
+                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                    <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
+                    ${precio ? `
+                    <div class="precio-section">
+                        <span class="precio-simbolo">$</span>
+                        <span class="precio-monto">${formatearPrecio(precio)}</span>
+                    </div>` : ''}
+                    <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
+                        ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
+                    </div>
+                </div>
+            </a>
+            <div class="product-body" style="padding-top:0;">
+                <div class="product-botones">
+                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                        💬 WhatsApp
+                    </a>
+                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">🛒 ML</a>` : ''}
+                </div>
+                ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">✅ Marcar vendido</button>` : ''}
+            </div>
+        </article>`;
+}
+
+const WHATSAPP_NUMERO = '5491100000000';
+let tiendaTimeout = null;
 
 function formatearPrecio(n) {
     return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
-
-function getWhatsAppNumero() {
-    return '5491100000000';
-}
-
-const WHATSAPP_NUMERO = getWhatsAppNumero();
 
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 
@@ -220,6 +342,8 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         mlId: document.getElementById('mlId').value.trim(),
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
+        descripcion: document.getElementById('descripcion').value,
+        destacado: document.getElementById('destacadoCheck').checked,
         publicarEshop: document.getElementById('publicarEshop').checked,
     };
     const url = id ? `${API_PROY}/${id}` : API_PROY;
@@ -245,6 +369,8 @@ async function editar(id) {
     document.getElementById('cantidad').value = p.cantidad || '';
     document.getElementById('mlId').value = p.ml_id || '';
     document.getElementById('fotos').value = p.fotos || '';
+    document.getElementById('descripcion').value = p.descripcion || '';
+    document.getElementById('destacadoCheck').checked = !!p.destacado;
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
     document.getElementById('formOverlay').classList.remove('hidden');
