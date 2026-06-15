@@ -11,7 +11,8 @@ function msgP(text) {
 function urlML(id) {
     if (!id) return '';
     if (id.startsWith('http')) return id;
-    return `https://articulo.mercadolibre.com.ar/${id}`;
+    const match = id.match(/^([A-Z]{3})(\d+)$/);
+    return match ? `https://articulo.mercadolibre.com.ar/${match[1]}-${match[2]}` : `https://articulo.mercadolibre.com.ar/${id}`;
 }
 
 function fotosArray(fotos) {

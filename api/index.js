@@ -349,10 +349,9 @@ app.patch('/api/proyectos/:id/vender', async (req, res) => {
 app.get('/api/eshop', async (req, res) => {
     try {
         const { categoria } = req.query;
-        let query = sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true`;
-        if (categoria) query = sql`${query} AND categoria = ${categoria}`;
-        query = sql`${query} ORDER BY nombre`;
-        const { rows } = await query;
+        const { rows } = categoria
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -378,10 +377,9 @@ app.get('/api/buscar', async (req, res) => {
         const { q, categoria } = req.query;
         if (!q || q.trim().length < 1) return res.json([]);
         const term = `%${q.trim()}%`;
-        let query = sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term})`;
-        if (categoria) query = sql`${query} AND categoria = ${categoria}`;
-        query = sql`${query} ORDER BY nombre LIMIT 20`;
-        const { rows } = await query;
+        const { rows } = categoria
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
