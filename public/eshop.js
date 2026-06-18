@@ -101,6 +101,9 @@ async function _ejecutarBusqueda() {
     const estado = document.getElementById('eshopEstado');
     const grid = document.getElementById('eshopGrid');
 
+    estado.classList.add('hidden');
+    grid.classList.remove('hidden');
+
     try {
         let url = q ? `/api/buscar?q=${encodeURIComponent(q)}` : '/api/eshop';
         if (catSeleccionada) url += (q ? '&' : '?') + `categoria=${encodeURIComponent(catSeleccionada)}`;
@@ -109,19 +112,22 @@ async function _ejecutarBusqueda() {
         const productos = await res.json();
 
         if (!productos.length) {
-            estado.textContent = q ? `No encontramos "${q}".` : 'No hay productos en esta categoría.';
-            estado.classList.remove('hidden');
-            grid.classList.add('hidden');
+            grid.innerHTML = `<div class="empty-state">
+                ${icon('inbox', 'icon-lg')}
+                <p class="empty-state-title">Sin resultados</p>
+                <p class="empty-state-text">${q ? `No encontramos "${escapeHTML(q)}".` : 'No hay productos en esta categoría.'}</p>
+            </div>`;
             return;
         }
 
         renderGrid(productos);
-        estado.classList.add('hidden');
-        grid.classList.remove('hidden');
     } catch (err) {
         if (err.name === 'AbortError') return;
-        estado.textContent = 'Error al buscar.';
-        estado.classList.remove('hidden');
+        grid.innerHTML = `<div class="empty-state">
+            ${icon('warning', 'icon-lg')}
+            <p class="empty-state-title">Error al buscar</p>
+            <p class="empty-state-text">Intentá de nuevo en un momento.</p>
+        </div>`;
     }
 }
 
@@ -130,8 +136,14 @@ function renderGrid(productos) {
     grid.innerHTML = productos.map(renderProducto).join('');
 }
 
+function mlHighResImage(url) {
+    if (!url || !url.includes('mlstatic.com')) return url;
+    return url.replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
+}
+
 function renderProducto(p) {
-    const foto = (p.fotos || '').split(',')[0]?.trim();
+    const fotoRaw = (p.fotos || '').split(',')[0]?.trim();
+    const foto = mlHighResImage(fotoRaw);
     const img = foto
         ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;

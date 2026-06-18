@@ -576,9 +576,10 @@ app.post('/api/ml/import', async (req, res) => {
         let importados = 0;
         let actualizados = 0;
         for (const item of items) {
+            const mlHighRes = u => u.replace(/^http:\/\//, 'https://').replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
             const fotos = item.pictures?.length
-                ? item.pictures.map(p => (p.url || p.secure_url || '').replace('http://', 'https://')).filter(Boolean).join(',')
-                : (item.thumbnail || '').replace('http://', 'https://');
+                ? item.pictures.map(p => mlHighRes(p.url || p.secure_url || '')).filter(Boolean).join(',')
+                : mlHighRes(item.thumbnail || '');
             const publicar = item.status === 'active';
             const descripcion = item.short_description?.content || '';
 
