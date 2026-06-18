@@ -21,6 +21,8 @@ function urlML(id) {
 
 let categoriasEshop = [];
 let catSeleccionada = '';
+let busquedaTimeout = null;
+let busquedaController = null;
 
 function skeletonCards(n) {
     return Array(n).fill(`
@@ -81,10 +83,19 @@ function renderCategorias() {
 
 function filtrarCategoria(cat) {
     catSeleccionada = cat;
-    buscarEshop();
+    renderCategorias();
+    _ejecutarBusqueda();
 }
 
-async function buscarEshop() {
+function buscarEshop() {
+    clearTimeout(busquedaTimeout);
+    busquedaTimeout = setTimeout(_ejecutarBusqueda, 300);
+}
+
+async function _ejecutarBusqueda() {
+    if (busquedaController) busquedaController.abort();
+    busquedaController = new AbortController();
+
     const input = document.getElementById('eshopSearch');
     const q = input.value.trim();
     const estado = document.getElementById('eshopEstado');
@@ -94,11 +105,11 @@ async function buscarEshop() {
         let url = q ? `/api/buscar?q=${encodeURIComponent(q)}` : '/api/eshop';
         if (catSeleccionada) url += (q ? '&' : '?') + `categoria=${encodeURIComponent(catSeleccionada)}`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: busquedaController.signal });
         const productos = await res.json();
 
         if (!productos.length) {
-            estado.textContent = q ? `No encontramos "${q}" en esta categoría.` : 'No hay productos en esta categoría.';
+            estado.textContent = q ? `No encontramos "${q}".` : 'No hay productos en esta categoría.';
             estado.classList.remove('hidden');
             grid.classList.add('hidden');
             return;
@@ -107,8 +118,10 @@ async function buscarEshop() {
         renderGrid(productos);
         estado.classList.add('hidden');
         grid.classList.remove('hidden');
-    } catch {
+    } catch (err) {
+        if (err.name === 'AbortError') return;
         estado.textContent = 'Error al buscar.';
+        estado.classList.remove('hidden');
     }
 }
 
