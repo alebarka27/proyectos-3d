@@ -569,23 +569,43 @@ app.post('/api/ml/import', async (req, res) => {
         const itemIds = await ml.searchItems(userId);
         const items = await ml.getItemsDetails(itemIds);
 
-        const { rows: existentes } = await sql`SELECT ml_id FROM proyectos WHERE ml_id != ''`;
-        const yaImportados = new Set(existentes.map(r => ml.parseMLId(r.ml_id)));
+        const { rows: existentes } = await sql`SELECT id, ml_id, publicareshop FROM proyectos WHERE ml_id != ''`;
+        const yaImportados = new Map(existentes.map(r => [ml.parseMLId(r.ml_id), r]));
 
         const fecha = new Date().toISOString().split('T')[0];
         let importados = 0;
+        let actualizados = 0;
         for (const item of items) {
-            if (yaImportados.has(item.id)) continue;
+            const fotos = item.pictures?.length
+                ? item.pictures.map(p => (p.url || p.secure_url || '').replace('http://', 'https://')).filter(Boolean).join(',')
+                : (item.thumbnail || '').replace('http://', 'https://');
+            const publicar = item.status === 'active';
+            const descripcion = item.short_description?.content || '';
+
+            if (yaImportados.has(item.id)) {
+                // actualizar estado de publicacion y precio/cantidad de existentes
+                const existing = yaImportados.get(item.id);
+                await sql`
+                    UPDATE proyectos SET
+                        precioventa = ${item.price || 0},
+                        cantidad = ${item.available_quantity || 0},
+                        publicareshop = ${publicar},
+                        fotos = CASE WHEN fotos = '' OR fotos IS NULL THEN ${fotos} ELSE fotos END
+                    WHERE id = ${existing.id}
+                `;
+                actualizados++;
+                continue;
+            }
+
             const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
-            const foto = (item.thumbnail || '').replace('http://', 'https://');
             await sql`
-                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id)
-                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${foto}, 'Terminado', ${fecha}, false, ${item.available_quantity || 0}, ${item.id})
+                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion)
+                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${fotos}, 'Terminado', ${fecha}, ${publicar}, ${item.available_quantity || 0}, ${item.id}, ${descripcion})
             `;
-            yaImportados.add(item.id);
+            yaImportados.set(item.id, { id });
             importados++;
         }
-        res.json({ ok: true, importados, total: items.length });
+        res.json({ ok: true, importados, actualizados, total: items.length });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

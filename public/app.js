@@ -809,7 +809,11 @@ async function importarML() {
         const res = await apiFetch('/api/ml/import', { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al importar');
-        showToast(`Se importaron ${data.importados} publicaciones nuevas (de ${data.total} encontradas en Mercado Libre). Quedaron como borrador, sin publicar en el eshop.`, 'success');
+        const partes = [];
+        if (data.importados > 0) partes.push(`${data.importados} nuevas importadas`);
+        if (data.actualizados > 0) partes.push(`${data.actualizados} existentes actualizadas`);
+        const msg = partes.length ? partes.join(', ') + '. Las activas en ML se publicaron en la tienda.' : 'No hay publicaciones nuevas para importar.';
+        showToast(msg, 'success');
         const resP = await apiFetch(API_PROY);
         todosProyectos = await resP.json();
         renderSidebar();
