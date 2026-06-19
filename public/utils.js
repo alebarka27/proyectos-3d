@@ -16,7 +16,7 @@ function safeHref(url) {
 }
 
 /* --- Numero de WhatsApp: UNICA fuente de verdad de todo el sitio --- */
-const WHATSAPP_NUMERO = '5491100000000';
+const WHATSAPP_NUMERO = '5491127192970';
 
 function whatsappHref(text) {
     const base = `https://wa.me/${WHATSAPP_NUMERO}`;
