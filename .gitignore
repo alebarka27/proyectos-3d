@@ -4,3 +4,6 @@ node_modules/
 ngrok.exe
 
 .vercel
+
+# Datos legacy ya migrados a Postgres
+proyectos.json

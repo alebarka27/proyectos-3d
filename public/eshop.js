@@ -1,20 +1,5 @@
-const WHATSAPP_NUMERO = '5491100000000';
-
-function formatearPrecio(n) {
-    return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-function urlML(id) {
-    if (!id) return '';
-    if (id.startsWith('http')) return id;
-    const match = id.match(/^([A-Z]{3})(\d+)$/);
-    return match ? `https://articulo.mercadolibre.com.ar/${match[1]}-${match[2]}` : `https://articulo.mercadolibre.com.ar/${id}`;
-}
-
-function mlHighResImage(url) {
-    if (!url || !url.includes('mlstatic.com')) return url;
-    return url.replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
-}
+/* Helpers compartidos (formatearPrecio, urlML, mlHighResImage, escapeHTML,
+   safeHref, whatsappHref) viven en utils.js, cargado antes que este archivo. */
 
 let todosProductos = [];
 let categoriasEshop = [];
@@ -124,7 +109,7 @@ function renderProducto(p) {
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;
-    const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
+    const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
     const mlUrl = urlML(p.ml_id);
     return `
         <article class="product-card">
@@ -145,7 +130,7 @@ function renderProducto(p) {
             </a>
             <div class="product-body" style="padding-top:0;">
                 <div class="product-botones">
-                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="${waUrl}" target="_blank" rel="noopener noreferrer"`}>
                         ${icon('chat')} WhatsApp
                     </a>
                     ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}

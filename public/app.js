@@ -78,20 +78,7 @@ function ganancia(p) {
     return (venta - costo) * cant;
 }
 
-function extraerMLId(valor) {
-    if (!valor) return '';
-    const match = valor.match(/MLA-?\d+/);
-    if (match) return match[0].replace('-', '');
-    if (/^\d+$/.test(valor.trim())) return 'MLA' + valor.trim();
-    return valor;
-}
-
-function urlML(id) {
-    if (!id) return '';
-    if (id.startsWith('http')) return id;
-    const match = id.match(/^([A-Z]{3})(\d+)$/);
-    return match ? `https://articulo.mercadolibre.com.ar/${match[1]}-${match[2]}` : `https://articulo.mercadolibre.com.ar/${id}`;
-}
+/* extraerMLId, urlML y formatearPrecio viven en utils.js (cargado antes). */
 
 function skeletonCards(n) {
     return Array(n).fill(`
@@ -342,7 +329,7 @@ function renderProductCard(p) {
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;
-    const mensaje = encodeURIComponent(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
+    const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
     const mlUrl = urlML(p.ml_id);
     return `
         <article class="product-card">
@@ -363,7 +350,7 @@ function renderProductCard(p) {
             </a>
             <div class="product-body" style="padding-top:0;">
                 <div class="product-botones">
-                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}" target="_blank" rel="noopener noreferrer"`}>
+                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="${waUrl}" target="_blank" rel="noopener noreferrer"`}>
                         ${icon('chat')} WhatsApp
                     </a>
                     ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
@@ -373,12 +360,7 @@ function renderProductCard(p) {
         </article>`;
 }
 
-const WHATSAPP_NUMERO = '5491100000000';
 let tiendaTimeout = null;
-
-function formatearPrecio(n) {
-    return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
 
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 

@@ -185,6 +185,11 @@ async function initDB() {
                 fecha TEXT DEFAULT ''
             );
         `;
+        // Indices para acelerar las consultas mas frecuentes del catalogo publico
+        await sql`CREATE INDEX IF NOT EXISTS idx_proyectos_eshop ON proyectos (publicareshop);`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_proyectos_categoria ON proyectos (categoria);`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_proyectos_ml_id ON proyectos (ml_id);`;
+        await sql`CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas (fecha);`;
         console.log('Base de datos inicializada');
         await ml.initMLTokens().catch(e => console.log('initMLTokens:', e.message));
 
@@ -614,24 +619,34 @@ app.post('/api/ml/import', async (req, res) => {
 
 app.post('/api/ml/webhook', async (req, res) => {
     try {
-        const { topic, resource } = req.body;
+        const { topic, resource, user_id } = req.body;
         if (!topic) return res.sendStatus(400);
+
+        // Validar que la notificacion sea para nuestra cuenta de ML (evita POSTs falsos)
+        const ourUserId = await ml.getUserId();
+        if (ourUserId && user_id && String(user_id) !== String(ourUserId)) {
+            console.warn(`Webhook ML ignorado: user_id ${user_id} no coincide con ${ourUserId}`);
+            return res.sendStatus(200);
+        }
+
         if (topic === 'orders_v2' && resource) {
             const orderId = resource.split('/').pop();
             const order = await ml.getOrder(orderId);
             for (const item of order.order_items || []) {
                 const mlItemId = item.item.id;
+                const cant = Math.max(1, parseInt(item.quantity) || 1);
+                const precio = item.unit_price || 0;
                 const { rows } = await sql`SELECT id FROM proyectos WHERE ml_id LIKE '%' || ${mlItemId} || '%'`;
                 if (rows.length) {
                     const pId = rows[0].id;
-                    await sql`UPDATE proyectos SET cantidad = GREATEST(0, cantidad - 1) WHERE id = ${pId}`;
+                    await sql`UPDATE proyectos SET cantidad = GREATEST(0, cantidad - ${cant}) WHERE id = ${pId}`;
                     const ventaId = Date.now().toString() + Math.random().toString(36).slice(2, 6);
                     const fecha = new Date().toISOString().split('T')[0];
                     await sql`
                         INSERT INTO ventas (id, proyectoid, cantidad, precioventa, costo, ganancia, fecha)
-                        VALUES (${ventaId}, ${pId}, 1, ${item.unit_price || 0}, 0, ${item.unit_price || 0}, ${fecha})
+                        VALUES (${ventaId}, ${pId}, ${cant}, ${precio}, 0, ${precio * cant}, ${fecha})
                     `;
-                    console.log(`Venta ML auto-registrada: ${mlItemId} -> proyecto ${pId}`);
+                    console.log(`Venta ML auto-registrada: ${mlItemId} x${cant} -> proyecto ${pId}`);
                 }
             }
         }
