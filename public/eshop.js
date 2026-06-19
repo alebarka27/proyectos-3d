@@ -4,14 +4,6 @@ function formatearPrecio(n) {
     return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-function extraerMLId(valor) {
-    if (!valor) return '';
-    const match = valor.match(/MLA-?\d+/);
-    if (match) return match[0].replace('-', '');
-    if (/^\d+$/.test(valor.trim())) return 'MLA' + valor.trim();
-    return valor;
-}
-
 function urlML(id) {
     if (!id) return '';
     if (id.startsWith('http')) return id;
@@ -19,10 +11,15 @@ function urlML(id) {
     return match ? `https://articulo.mercadolibre.com.ar/${match[1]}-${match[2]}` : `https://articulo.mercadolibre.com.ar/${id}`;
 }
 
+function mlHighResImage(url) {
+    if (!url || !url.includes('mlstatic.com')) return url;
+    return url.replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
+}
+
+let todosProductos = [];
 let categoriasEshop = [];
 let catSeleccionada = '';
 let busquedaTimeout = null;
-let busquedaController = null;
 
 function skeletonCards(n) {
     return Array(n).fill(`
@@ -42,41 +39,31 @@ async function cargarEshop() {
     estado.classList.add('hidden');
     grid.classList.remove('hidden');
     grid.innerHTML = skeletonCards(6);
+
     try {
         const res = await fetch('/api/eshop');
         if (!res.ok) throw new Error('Error al cargar');
-        const productos = await res.json();
+        todosProductos = await res.json();
 
-        categoriasEshop = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
+        categoriasEshop = [...new Set(todosProductos.map(p => p.categoria).filter(Boolean))].sort();
         renderCategorias();
-
-        if (!productos.length) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    ${icon('inbox', 'icon-lg')}
-                    <p class="empty-state-title">Todavía no hay productos</p>
-                    <p class="empty-state-text">Pronto vamos a sumar diseños al catálogo.</p>
-                </div>`;
-            return;
-        }
-
-        renderGrid(productos);
+        mostrarProductos(todosProductos);
     } catch {
-        grid.innerHTML = `
-            <div class="empty-state">
-                ${icon('warning', 'icon-lg')}
-                <p class="empty-state-title">No se pudo cargar el catálogo</p>
-                <p class="empty-state-text">Probá de nuevo en un momento.</p>
-            </div>`;
+        grid.innerHTML = `<div class="empty-state">
+            ${icon('warning', 'icon-lg')}
+            <p class="empty-state-title">No se pudo cargar el catálogo</p>
+            <p class="empty-state-text">Probá de nuevo en un momento.</p>
+        </div>`;
     }
 }
 
 function renderCategorias() {
     const container = document.getElementById('eshopCategorias');
+    const activoStyle = 'border-color:var(--border-strong);color:var(--text);background:var(--surface-2);';
     container.innerHTML = `
-        <button class="home-cat-btn ${!catSeleccionada ? 'home-cat-btn-active' : ''}" style="${!catSeleccionada ? 'border-color:var(--border-strong);color:var(--text);background:var(--surface-2);' : ''}" onclick="filtrarCategoria('')">Todas</button>
+        <button class="home-cat-btn ${!catSeleccionada ? 'home-cat-btn-active' : ''}" style="${!catSeleccionada ? activoStyle : ''}" onclick="filtrarCategoria('')">Todas</button>
         ${categoriasEshop.map(c => `
-            <button class="home-cat-btn ${catSeleccionada === c ? 'home-cat-btn-active' : ''}" style="${catSeleccionada === c ? 'border-color:var(--border-strong);color:var(--text);background:var(--surface-2);' : ''}" onclick="filtrarCategoria('${escapeHTML(c)}')">${escapeHTML(c)}</button>
+            <button class="home-cat-btn ${catSeleccionada === c ? 'home-cat-btn-active' : ''}" style="${catSeleccionada === c ? activoStyle : ''}" onclick="filtrarCategoria('${escapeHTML(c)}')">${escapeHTML(c)}</button>
         `).join('')}
     `;
 }
@@ -84,61 +71,49 @@ function renderCategorias() {
 function filtrarCategoria(cat) {
     catSeleccionada = cat;
     renderCategorias();
-    _ejecutarBusqueda();
+    filtrarYMostrar();
 }
 
 function buscarEshop() {
     clearTimeout(busquedaTimeout);
-    busquedaTimeout = setTimeout(_ejecutarBusqueda, 300);
+    busquedaTimeout = setTimeout(filtrarYMostrar, 200);
 }
 
-async function _ejecutarBusqueda() {
-    if (busquedaController) busquedaController.abort();
-    busquedaController = new AbortController();
+function filtrarYMostrar() {
+    const q = (document.getElementById('eshopSearch').value || '').trim().toLowerCase();
 
-    const input = document.getElementById('eshopSearch');
-    const q = input.value.trim();
-    const estado = document.getElementById('eshopEstado');
-    const grid = document.getElementById('eshopGrid');
+    let resultado = todosProductos;
 
-    estado.classList.add('hidden');
-    grid.classList.remove('hidden');
-
-    try {
-        let url = q ? `/api/buscar?q=${encodeURIComponent(q)}` : '/api/eshop';
-        if (catSeleccionada) url += (q ? '&' : '?') + `categoria=${encodeURIComponent(catSeleccionada)}`;
-
-        const res = await fetch(url, { signal: busquedaController.signal });
-        const productos = await res.json();
-
-        if (!productos.length) {
-            grid.innerHTML = `<div class="empty-state">
-                ${icon('inbox', 'icon-lg')}
-                <p class="empty-state-title">Sin resultados</p>
-                <p class="empty-state-text">${q ? `No encontramos "${escapeHTML(q)}".` : 'No hay productos en esta categoría.'}</p>
-            </div>`;
-            return;
-        }
-
-        renderGrid(productos);
-    } catch (err) {
-        if (err.name === 'AbortError') return;
-        grid.innerHTML = `<div class="empty-state">
-            ${icon('warning', 'icon-lg')}
-            <p class="empty-state-title">Error al buscar</p>
-            <p class="empty-state-text">Intentá de nuevo en un momento.</p>
-        </div>`;
+    if (catSeleccionada) {
+        resultado = resultado.filter(p => p.categoria === catSeleccionada);
     }
+
+    if (q) {
+        resultado = resultado.filter(p =>
+            (p.nombre || '').toLowerCase().includes(q) ||
+            (p.categoria || '').toLowerCase().includes(q)
+        );
+    }
+
+    mostrarProductos(resultado, q);
 }
 
-function renderGrid(productos) {
+function mostrarProductos(productos, q) {
     const grid = document.getElementById('eshopGrid');
-    grid.innerHTML = productos.map(renderProducto).join('');
-}
 
-function mlHighResImage(url) {
-    if (!url || !url.includes('mlstatic.com')) return url;
-    return url.replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
+    if (!productos.length) {
+        const msg = q
+            ? `No encontramos coincidencias para "<strong>${escapeHTML(q)}</strong>".`
+            : 'No hay productos en esta categoría.';
+        grid.innerHTML = `<div class="empty-state">
+            ${icon('inbox', 'icon-lg')}
+            <p class="empty-state-title">Sin resultados</p>
+            <p class="empty-state-text">${msg}</p>
+        </div>`;
+        return;
+    }
+
+    grid.innerHTML = productos.map(renderProducto).join('');
 }
 
 function renderProducto(p) {
