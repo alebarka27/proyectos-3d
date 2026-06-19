@@ -35,7 +35,7 @@ async function cargarProducto() {
         const data = await res.json();
         const p = data.producto;
 
-        document.title = `${p.nombre} — Catálogo 3D`;
+        document.title = `${p.nombre} — 3D by Aurora`;
 
         const fotos = fotosArray(p.fotos);
         const sinStock = !p.cantidad || p.cantidad <= 0;
