@@ -168,6 +168,7 @@ async function initDB() {
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS ml_id TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS descripcion TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS destacado BOOLEAN DEFAULT FALSE;`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colores TEXT DEFAULT '';`;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -355,8 +356,8 @@ app.get('/api/eshop', async (req, res) => {
     try {
         const { categoria } = req.query;
         const { rows } = categoria
-            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
-            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -366,7 +367,7 @@ app.get('/api/eshop', async (req, res) => {
 app.get('/api/destacados', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos
+            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos
             WHERE publicareshop = true
             ORDER BY vendidos DESC, destacado DESC
             LIMIT 8
@@ -383,8 +384,8 @@ app.get('/api/buscar', async (req, res) => {
         if (!q || q.trim().length < 1) return res.json([]);
         const term = `%${q.trim()}%`;
         const { rows } = categoria
-            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
-            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -394,7 +395,7 @@ app.get('/api/buscar', async (req, res) => {
 app.get('/api/producto/:id', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado FROM proyectos
+            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores FROM proyectos
             WHERE id = ${req.params.id} AND publicareshop = true
         `;
         if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
@@ -567,6 +568,26 @@ app.post('/api/proyectos/:id/ml-sync', async (req, res) => {
     }
 });
 
+// Junta los colores de un item de ML: primero desde las variaciones (con stock),
+// y si no tiene, desde el atributo COLOR de la publicacion.
+function extraerColores(item) {
+    const colores = new Set();
+    if (Array.isArray(item.variations)) {
+        for (const v of item.variations) {
+            if (v.available_quantity != null && v.available_quantity <= 0) continue;
+            for (const c of v.attribute_combinations || []) {
+                if (c.id === 'COLOR' && c.value_name) colores.add(c.value_name.trim());
+            }
+        }
+    }
+    if (!colores.size && Array.isArray(item.attributes)) {
+        for (const a of item.attributes) {
+            if (a.id === 'COLOR' && a.value_name) colores.add(a.value_name.trim());
+        }
+    }
+    return [...colores].join(',');
+}
+
 app.post('/api/ml/import', async (req, res) => {
     try {
         const userId = await ml.getUserId();
@@ -586,6 +607,7 @@ app.post('/api/ml/import', async (req, res) => {
                 ? item.pictures.map(p => mlHighRes(p.url || p.secure_url || '')).filter(Boolean).join(',')
                 : mlHighRes(item.thumbnail || '');
             const publicar = item.status === 'active';
+            const colores = extraerColores(item);
 
             // La descripcion real de ML vive en un endpoint aparte; short_description suele venir vacio
             let descripcion = item.short_description?.content || '';
@@ -594,13 +616,14 @@ app.post('/api/ml/import', async (req, res) => {
             }
 
             if (yaImportados.has(item.id)) {
-                // actualizar estado/precio/stock; completar fotos y descripcion si estaban vacias
+                // actualizar estado/precio/stock/colores; completar fotos y descripcion si estaban vacias
                 const existing = yaImportados.get(item.id);
                 await sql`
                     UPDATE proyectos SET
                         precioventa = ${item.price || 0},
                         cantidad = ${item.available_quantity || 0},
                         publicareshop = ${publicar},
+                        colores = ${colores},
                         fotos = CASE WHEN fotos = '' OR fotos IS NULL THEN ${fotos} ELSE fotos END,
                         descripcion = CASE WHEN descripcion = '' OR descripcion IS NULL THEN ${descripcion} ELSE descripcion END
                     WHERE id = ${existing.id}
@@ -611,8 +634,8 @@ app.post('/api/ml/import', async (req, res) => {
 
             const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
             await sql`
-                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion)
-                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${fotos}, 'Terminado', ${fecha}, ${publicar}, ${item.available_quantity || 0}, ${item.id}, ${descripcion})
+                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, colores)
+                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${fotos}, 'Terminado', ${fecha}, ${publicar}, ${item.available_quantity || 0}, ${item.id}, ${descripcion}, ${colores})
             `;
             yaImportados.set(item.id, { id });
             importados++;

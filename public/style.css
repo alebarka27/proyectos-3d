@@ -292,6 +292,22 @@ td a:hover { text-decoration: underline; }
 .precio-simbolo { font-size: 16px; font-weight: 600; color: var(--text-dim); line-height: 1.9; }
 .precio-monto { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -1.2px; line-height: 1; }
 
+/* Colores disponibles (swatches) */
+.color-swatches { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin: 2px 0; }
+.swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+}
+.swatch-transparente {
+    background:
+        linear-gradient(45deg, var(--border-strong) 25%, transparent 25%, transparent 75%, var(--border-strong) 75%) 0 0/8px 8px,
+        var(--surface-2);
+}
+.swatch-otro { background: conic-gradient(#f5c518, #e23b3b, #8b5cf6, #3fb950, #2f6fed, #f5c518); }
+.swatch-more { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+
 .product-botones { display: flex; gap: 6px; margin-top: 6px; }
 .product-botones a, .product-botones button { flex: 1; text-align: center; }
 
@@ -821,6 +837,15 @@ td a:hover { text-decoration: underline; }
 }
 .producto-stock.stock-ok { color: var(--success); }
 .producto-stock.stock-no { color: var(--danger); }
+
+.producto-colores { display: flex; flex-direction: column; gap: 8px; }
+.producto-colores-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+    font-weight: 600; color: var(--text-faint);
+}
+.producto-colores-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.producto-colores-row .swatch { width: 18px; height: 18px; }
+.producto-colores-nombres { font-size: 13.5px; color: var(--text-dim); }
 
 .producto-descripcion {
     line-height: 1.7;

@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const {
     escapeHTML, safeHref, formatearPrecio, urlML,
     extraerMLId, mlHighResImage, fotosArray, whatsappHref,
+    colorHex, coloresChips,
 } = require('../public/utils.js');
 
 test('escapeHTML escapa caracteres especiales de HTML', () => {
@@ -81,4 +82,21 @@ test('fotosArray separa por comas y limpia vacios', () => {
 test('whatsappHref arma el link con y sin mensaje', () => {
     assert.match(whatsappHref(), /^https:\/\/wa\.me\/\d+$/);
     assert.match(whatsappHref('Hola mundo'), /\?text=Hola%20mundo$/);
+});
+
+test('colorHex resuelve colores (ignora acentos y mayusculas) y null si no existe', () => {
+    assert.strictEqual(colorHex('Negro'), '#1a1a1a');
+    assert.strictEqual(colorHex('marrón'), '#8b5a2b');
+    assert.strictEqual(colorHex('Transparente'), 'transparent');
+    assert.strictEqual(colorHex('ColorRaro'), null);
+});
+
+test('coloresChips genera swatches y respeta el maximo', () => {
+    assert.strictEqual(coloresChips(''), '');
+    assert.strictEqual(coloresChips(null), '');
+    const html = coloresChips('Negro,Rojo');
+    assert.match(html, /class="color-swatches"/);
+    assert.match(html, /background:#1a1a1a/);
+    // mas colores que el maximo -> muestra el contador "+N"
+    assert.match(coloresChips('Negro,Rojo,Azul', 2), /\+1/);
 });

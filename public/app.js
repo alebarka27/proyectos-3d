@@ -257,6 +257,7 @@ function renderProductCard(p) {
                         <span class="precio-simbolo">$</span>
                         <span class="precio-monto">${formatearPrecio(precio)}</span>
                     </div>` : ''}
+                    ${coloresChips(p.colores)}
                     <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
                         ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                     </div>

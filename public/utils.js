@@ -56,6 +56,41 @@ function fotosArray(fotos) {
     return (fotos || '').split(',').map(s => s.trim()).filter(Boolean);
 }
 
+/* --- Colores disponibles (de Mercado Libre) --- */
+
+const COLOR_MAP = {
+    negro: '#1a1a1a', blanco: '#f5f5f5', gris: '#9a9a9a', plata: '#c8c8c8', plateado: '#c8c8c8',
+    rojo: '#e23b3b', bordo: '#7b1e2b', bordeaux: '#7b1e2b', naranja: '#f08a24', amarillo: '#f5c518',
+    dorado: '#d4af37', oro: '#d4af37', verde: '#3fb950', 'verde agua': '#4fd1c5', oliva: '#808000',
+    celeste: '#5bc0eb', azul: '#2f6fed', 'azul marino': '#1e2a5a', turquesa: '#1abc9c',
+    violeta: '#8b5cf6', morado: '#8b5cf6', lila: '#c3a6e8', rosa: '#f06fb0', fucsia: '#e0218a',
+    marron: '#8b5a2b', beige: '#e3d2b3', crema: '#f0e6d2', cobre: '#b87333', transparente: 'transparent',
+};
+
+function colorHex(name) {
+    const k = (name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    return COLOR_MAP[k] || null;
+}
+
+// Devuelve el HTML de los swatches de color para una lista "Negro,Rojo,Azul"
+function coloresChips(coloresStr, max = 6) {
+    const cols = fotosArray(coloresStr);
+    if (!cols.length) return '';
+    const visibles = cols.slice(0, max);
+    const swatches = visibles.map(c => {
+        const hex = colorHex(c);
+        if (hex === 'transparent') {
+            return `<span class="swatch swatch-transparente" title="${escapeHTML(c)}" aria-label="${escapeHTML(c)}"></span>`;
+        }
+        if (hex) {
+            return `<span class="swatch" style="background:${hex}" title="${escapeHTML(c)}" aria-label="${escapeHTML(c)}"></span>`;
+        }
+        return `<span class="swatch swatch-otro" title="${escapeHTML(c)}" aria-label="${escapeHTML(c)}"></span>`;
+    }).join('');
+    const extra = cols.length > max ? `<span class="swatch-more">+${cols.length - max}</span>` : '';
+    return `<div class="color-swatches" title="Colores: ${escapeHTML(cols.join(', '))}">${swatches}${extra}</div>`;
+}
+
 /* --- Setea los botones flotantes de WhatsApp en cualquier pagina ---
    Los <a class="whatsapp-float"> y cualquier [data-wa] toman el href de aca,
    asi el numero vive en un solo lugar. (solo navegador) */
@@ -71,5 +106,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         escapeHTML, safeHref, WHATSAPP_NUMERO, whatsappHref,
         formatearPrecio, urlML, extraerMLId, mlHighResImage, fotosArray,
+        colorHex, coloresChips,
     };
 }
