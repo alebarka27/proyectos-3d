@@ -581,22 +581,28 @@ app.post('/api/ml/import', async (req, res) => {
         let importados = 0;
         let actualizados = 0;
         for (const item of items) {
-            const mlHighRes = u => u.replace(/^http:\/\//, 'https://').replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
+            const mlHighRes = u => u.replace(/^http:\/\//, 'https://').replace(/-[A-Z](\.(?:jpe?g|png|webp))$/i, '-O$1');
             const fotos = item.pictures?.length
                 ? item.pictures.map(p => mlHighRes(p.url || p.secure_url || '')).filter(Boolean).join(',')
                 : mlHighRes(item.thumbnail || '');
             const publicar = item.status === 'active';
-            const descripcion = item.short_description?.content || '';
+
+            // La descripcion real de ML vive en un endpoint aparte; short_description suele venir vacio
+            let descripcion = item.short_description?.content || '';
+            if (!descripcion) {
+                try { descripcion = await ml.getItemDescription(item.id); } catch { descripcion = ''; }
+            }
 
             if (yaImportados.has(item.id)) {
-                // actualizar estado de publicacion y precio/cantidad de existentes
+                // actualizar estado/precio/stock; completar fotos y descripcion si estaban vacias
                 const existing = yaImportados.get(item.id);
                 await sql`
                     UPDATE proyectos SET
                         precioventa = ${item.price || 0},
                         cantidad = ${item.available_quantity || 0},
                         publicareshop = ${publicar},
-                        fotos = CASE WHEN fotos = '' OR fotos IS NULL THEN ${fotos} ELSE fotos END
+                        fotos = CASE WHEN fotos = '' OR fotos IS NULL THEN ${fotos} ELSE fotos END,
+                        descripcion = CASE WHEN descripcion = '' OR descripcion IS NULL THEN ${descripcion} ELSE descripcion END
                     WHERE id = ${existing.id}
                 `;
                 actualizados++;

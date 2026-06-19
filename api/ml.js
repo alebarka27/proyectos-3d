@@ -177,6 +177,17 @@ async function updateItem(itemId, data) {
     return await res.json();
 }
 
+async function getItemDescription(itemId) {
+    const token = await getValidToken();
+    if (!token) throw new Error('ML no conectado');
+    const res = await fetch(`${ML_API}/items/${itemId}/description`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return ''; // 404 = sin descripcion
+    const data = await res.json();
+    return data.plain_text || data.text || '';
+}
+
 async function getOrder(orderId) {
     const token = await getValidToken();
     if (!token) throw new Error('ML no conectado');
@@ -203,6 +214,7 @@ module.exports = {
     getUserId,
     searchItems,
     getItemsDetails,
+    getItemDescription,
     updateItem,
     getOrder,
     parseMLId,

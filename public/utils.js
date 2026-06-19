@@ -44,10 +44,12 @@ function extraerMLId(valor) {
     return valor;
 }
 
-// Convierte miniaturas de ML (-I / -F) a la imagen original (-O) en alta resolucion
+// Convierte miniaturas de ML a la imagen original (-O) en alta resolucion.
+// ML codifica el tamaño con un sufijo de una letra antes de la extension
+// (-I, -V, -N, -S, -F, -W, etc.); -O es la original.
 function mlHighResImage(url) {
     if (!url || !url.includes('mlstatic.com')) return url;
-    return url.replace(/-(I|F)(\.(jpe?g|png|webp))$/i, '-O$2');
+    return url.replace(/-[A-Z](\.(?:jpe?g|png|webp))$/i, '-O$1');
 }
 
 function fotosArray(fotos) {

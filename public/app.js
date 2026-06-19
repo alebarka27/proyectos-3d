@@ -237,7 +237,7 @@ async function ejecutarBusqueda(q) {
 }
 
 function renderProductCard(p) {
-    const foto = (p.fotos || '').split(',')[0]?.trim();
+    const foto = mlHighResImage((p.fotos || '').split(',')[0]?.trim());
     const img = foto
         ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;

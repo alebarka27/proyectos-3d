@@ -57,6 +57,16 @@ test('mlHighResImage convierte miniaturas de ML a alta resolucion', () => {
         mlHighResImage('https://http2.mlstatic.com/D_NQ_NP_123-I.jpg'),
         'https://http2.mlstatic.com/D_NQ_NP_123-O.jpg'
     );
+    // distintos sufijos de tamaño (-V, -N, -S, ...) tambien se elevan a -O
+    assert.strictEqual(
+        mlHighResImage('https://http2.mlstatic.com/D_NQ_NP_2X_686-MLA69_122023-V.webp'),
+        'https://http2.mlstatic.com/D_NQ_NP_2X_686-MLA69_122023-O.webp'
+    );
+    // ya en alta resolucion: queda igual
+    assert.strictEqual(
+        mlHighResImage('https://http2.mlstatic.com/D_NQ_NP_123-O.jpg'),
+        'https://http2.mlstatic.com/D_NQ_NP_123-O.jpg'
+    );
     // URLs que no son de ML quedan intactas
     assert.strictEqual(mlHighResImage('https://otro.com/foto-I.jpg'), 'https://otro.com/foto-I.jpg');
     assert.strictEqual(mlHighResImage(''), '');

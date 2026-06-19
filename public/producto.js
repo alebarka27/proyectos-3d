@@ -57,7 +57,7 @@ async function cargarProducto() {
                     ${p.descripcion ? `
                     <div class="producto-descripcion">
                         <h3>Descripción</h3>
-                        ${escapeHTML(p.descripcion)}
+                        <p>${escapeHTML(p.descripcion).replace(/\n/g, '<br>')}</p>
                     </div>` : ''}
                     <div class="producto-ctas">
                         <a class="producto-cta-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="${whatsappUrl}" target="_blank" rel="noopener noreferrer"`}>
