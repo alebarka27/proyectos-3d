@@ -241,22 +241,21 @@
             </div>
 
             <div id="vistaTienda" class="hidden">
+                <div class="home-hero" id="tiendaHero">
+                    <div class="home-hero-bg"></div>
+                    <div class="home-hero-content">
+                        <h1>Impresiones 3D</h1>
+                        <p>Diseños únicos impresos con materiales de calidad. Consultanos por WhatsApp o comprá directo desde la tienda.</p>
+                        <button class="btn-primary" onclick="document.getElementById('tiendaSearch').focus()">Explorar productos</button>
+                    </div>
+                </div>
+
+                <div class="search-bar" id="searchBar" style="margin-bottom:24px;">
+                    <input type="text" id="tiendaSearch" placeholder="Buscá productos..." oninput="manejarBusqueda()" autocomplete="off">
+                    <button onclick="manejarBusqueda()">Buscar</button>
+                </div>
+
                 <div id="tiendaHome">
-                    <div class="home-hero">
-                        <div class="home-hero-bg"></div>
-                        <div class="home-hero-content">
-                            <h1>Impresiones 3D</h1>
-                            <p>Diseños únicos impresos con materiales de calidad. Consultanos por WhatsApp o comprá directo desde la tienda.</p>
-                            <button class="btn-primary" onclick="document.getElementById('tiendaSearch').focus()">Explorar productos</button>
-                        </div>
-                    </div>
-
-                    <div class="search-bar" id="searchBar" style="margin-bottom:24px;">
-                        <input type="text" id="tiendaSearch" placeholder="Buscá productos..." oninput="manejarBusqueda()" onkeydown="navegarSugerencias(event)" autocomplete="off">
-                        <button onclick="manejarBusqueda()">Buscar</button>
-                        <div id="searchSuggestions" class="search-suggestions hidden"></div>
-                    </div>
-
                     <div id="tiendaCategorias" class="home-categorias"></div>
 
                     <div class="home-section-title">

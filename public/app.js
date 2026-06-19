@@ -92,22 +92,25 @@ function skeletonCards(n) {
         </div>`).join('');
 }
 
+// Muestra u oculta el contenido propio de la home (hero + categorias + "Más
+// vendidos"). La barra de busqueda queda SIEMPRE visible, fuera de estos bloques.
+function mostrarContenidoHome(visible) {
+    document.getElementById('tiendaHero')?.classList.toggle('hidden', !visible);
+    document.getElementById('tiendaHome')?.classList.toggle('hidden', !visible);
+}
+
 async function renderTienda() {
     if (busquedaAbortController) busquedaAbortController.abort();
     clearTimeout(busquedaTimeout);
-    ocultarSugerencias();
     const estado = document.getElementById('tiendaEstado');
     estado.classList.add('hidden');
-    const home = document.getElementById('tiendaHome');
-    if (home) home.classList.remove('hidden');
     const searchInput = document.getElementById('tiendaSearch');
     if (searchInput) searchInput.value = '';
     await renderHome();
 }
 
 async function renderHome() {
-    const home = document.getElementById('tiendaHome');
-    if (home) home.classList.remove('hidden');
+    mostrarContenidoHome(true);
     renderCategoriasTienda();
 
     const grid = document.getElementById('tiendaGrid');
@@ -150,9 +153,7 @@ async function renderCategoriasTienda() {
 async function filtrarCatTienda(cat) {
     if (busquedaAbortController) busquedaAbortController.abort();
     clearTimeout(busquedaTimeout);
-    ocultarSugerencias();
-    const home = document.getElementById('tiendaHome');
-    if (home) home.classList.add('hidden');
+    mostrarContenidoHome(false);
     const searchInput = document.getElementById('tiendaSearch');
     if (searchInput) searchInput.value = '';
     const estado = document.getElementById('tiendaEstado');
@@ -180,34 +181,26 @@ async function filtrarCatTienda(cat) {
 
 let busquedaTimeout = null;
 let busquedaAbortController = null;
-let sugerenciaIndex = -1;
-
-function ocultarSugerencias() {
-    document.getElementById('searchSuggestions')?.classList.add('hidden');
-    sugerenciaIndex = -1;
-}
 
 function manejarBusqueda() {
-    const input = document.getElementById('tiendaSearch');
-    const q = input.value.trim();
-    const home = document.getElementById('tiendaHome');
+    const q = document.getElementById('tiendaSearch').value.trim();
     const grid = document.getElementById('tiendaGrid');
     const estado = document.getElementById('tiendaEstado');
 
-    ocultarSugerencias();
     clearTimeout(busquedaTimeout);
 
+    // Sin texto: volver a la home (destacados + categorias)
     if (!q) {
+        if (busquedaAbortController) busquedaAbortController.abort();
         estado.classList.add('hidden');
-        if (home) home.classList.remove('hidden');
         renderHome();
         return;
     }
 
-    if (home) home.classList.add('hidden');
-
-    grid.innerHTML = '<div class="loading-spinner">Buscando...</div>';
+    // Con texto: ocultar solo el contenido de home, la barra queda visible
+    mostrarContenidoHome(false);
     estado.classList.add('hidden');
+    grid.innerHTML = '<div class="loading-spinner">Buscando...</div>';
 
     busquedaTimeout = setTimeout(() => ejecutarBusqueda(q), 200);
 }
@@ -217,7 +210,6 @@ async function ejecutarBusqueda(q) {
     busquedaAbortController = new AbortController();
 
     const grid = document.getElementById('tiendaGrid');
-    const estado = document.getElementById('tiendaEstado');
 
     try {
         const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`, {
@@ -225,100 +217,22 @@ async function ejecutarBusqueda(q) {
         });
         const productos = await res.json();
 
-        const suggestions = document.getElementById('searchSuggestions');
-        if (productos.length) {
-            suggestions.innerHTML = productos.slice(0, 7).map((p, i) => {
-                const foto = (p.fotos || '').split(',')[0]?.trim();
-                const precio = parseFloat(p.precioventa) || 0;
-                return `
-                    <a class="search-suggestion-item" data-index="${i}" href="/producto.html?id=${encodeURIComponent(p.id)}">
-                        ${foto ? `<img src="${escapeHTML(safeHref(foto))}" alt="">` : `<div class="product-img-placeholder" style="width:36px;height:36px;">${icon('printer')}</div>`}
-                        <div class="search-suggestion-info">
-                            <div class="name">${escapeHTML(p.nombre)}</div>
-                            ${precio ? `<div class="price">$${formatearPrecio(precio)}</div>` : ''}
-                        </div>
-                    </a>`;
-            }).join('');
-            suggestions.classList.remove('hidden');
-            sugerenciaIndex = -1;
-        } else {
-            suggestions.innerHTML = `<div class="search-suggestion-item" style="cursor:default;color:var(--text-faint);justify-content:center;">Sin resultados para "${escapeHTML(q)}"</div>`;
-            suggestions.classList.remove('hidden');
+        if (!productos.length) {
+            grid.innerHTML = `<div class="empty-state">
+                ${icon('inbox', 'icon-lg')}
+                <p class="empty-state-title">Sin resultados</p>
+                <p class="empty-state-text">No encontramos "${escapeHTML(q)}".</p>
+            </div>`;
+            return;
         }
-
-        grid.innerHTML = productos.length
-            ? productos.map(p => renderProductCard(p)).join('')
-            : '';
-        estado.classList.toggle('hidden', productos.length > 0);
-        if (!productos.length) estado.textContent = `No encontramos "${q}".`;
+        grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
     } catch (err) {
         if (err.name === 'AbortError') return;
-        estado.textContent = 'Error al buscar.';
-        estado.classList.remove('hidden');
-    }
-}
-
-document.addEventListener('click', (e) => {
-    const suggestions = document.getElementById('searchSuggestions');
-    const searchBar = document.getElementById('searchBar');
-    if (suggestions && searchBar && !searchBar.contains(e.target)) {
-        ocultarSugerencias();
-    }
-});
-
-function navegarSugerencias(e) {
-    const suggestions = document.getElementById('searchSuggestions');
-    if (suggestions.classList.contains('hidden')) {
-        if (e.key === 'Escape') return;
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            const input = document.getElementById('tiendaSearch');
-            const q = input.value.trim();
-            if (q) ejecutarBusqueda(q);
-        }
-        return;
-    }
-
-    const items = suggestions.querySelectorAll('.search-suggestion-item');
-    if (!items.length) return;
-
-    switch (e.key) {
-        case 'ArrowDown':
-            e.preventDefault();
-            sugerenciaIndex = Math.min(sugerenciaIndex + 1, items.length - 1);
-            actualizarSugerenciaActiva(items);
-            break;
-        case 'ArrowUp':
-            e.preventDefault();
-            if (sugerenciaIndex <= 0) {
-                sugerenciaIndex = -1;
-                document.getElementById('tiendaSearch').focus();
-                items.forEach(i => i.classList.remove('suggestion-active'));
-                return;
-            }
-            sugerenciaIndex = Math.max(sugerenciaIndex - 1, 0);
-            actualizarSugerenciaActiva(items);
-            break;
-        case 'Enter':
-            e.preventDefault();
-            if (sugerenciaIndex >= 0 && items[sugerenciaIndex]) {
-                items[sugerenciaIndex].click();
-            }
-            break;
-        case 'Escape':
-            e.preventDefault();
-            ocultarSugerencias();
-            document.getElementById('tiendaSearch').focus();
-            break;
-    }
-}
-
-function actualizarSugerenciaActiva(items) {
-    items.forEach((el, i) => {
-        el.classList.toggle('suggestion-active', i === sugerenciaIndex);
-    });
-    if (sugerenciaIndex >= 0 && items[sugerenciaIndex]) {
-        items[sugerenciaIndex].scrollIntoView({ block: 'nearest' });
+        grid.innerHTML = `<div class="empty-state">
+            ${icon('warning', 'icon-lg')}
+            <p class="empty-state-title">Error al buscar</p>
+            <p class="empty-state-text">Intentá de nuevo en un momento.</p>
+        </div>`;
     }
 }
 
