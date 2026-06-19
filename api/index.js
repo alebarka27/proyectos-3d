@@ -169,6 +169,7 @@ async function initDB() {
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS descripcion TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS destacado BOOLEAN DEFAULT FALSE;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colores TEXT DEFAULT '';`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colorfotos TEXT DEFAULT '';`;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -395,7 +396,7 @@ app.get('/api/buscar', async (req, res) => {
 app.get('/api/producto/:id', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores FROM proyectos
+            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores, colorfotos FROM proyectos
             WHERE id = ${req.params.id} AND publicareshop = true
         `;
         if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
@@ -568,24 +569,40 @@ app.post('/api/proyectos/:id/ml-sync', async (req, res) => {
     }
 });
 
-// Junta los colores de un item de ML: primero desde las variaciones (con stock),
-// y si no tiene, desde el atributo COLOR de la publicacion.
-function extraerColores(item) {
-    const colores = new Set();
+// Eleva una URL de imagen de ML a su version original (-O) y fuerza https
+const mlHighRes = u => (u || '').replace(/^http:\/\//, 'https://').replace(/-[A-Z](\.(?:jpe?g|png|webp))$/i, '-O$1');
+
+// Junta los colores de un item de ML (desde las variaciones con stock, o el
+// atributo COLOR) y el mapa color -> foto correspondiente de esa variacion.
+function extraerColoresYFotos(item) {
+    const picById = {};
+    for (const pic of item.pictures || []) {
+        const url = mlHighRes(pic.url || pic.secure_url || '');
+        if (url) picById[pic.id] = url;
+    }
+    const colores = [];
+    const vistos = new Set();
+    const colorFotos = {};
+    const push = (name, picIds) => {
+        const n = (name || '').trim();
+        if (!n || vistos.has(n.toLowerCase())) return;
+        vistos.add(n.toLowerCase());
+        colores.push(n);
+        const url = (picIds || []).map(id => picById[id]).find(Boolean);
+        if (url) colorFotos[n] = url;
+    };
     if (Array.isArray(item.variations)) {
         for (const v of item.variations) {
             if (v.available_quantity != null && v.available_quantity <= 0) continue;
-            for (const c of v.attribute_combinations || []) {
-                if (c.id === 'COLOR' && c.value_name) colores.add(c.value_name.trim());
-            }
+            const c = (v.attribute_combinations || []).find(x => x.id === 'COLOR');
+            if (c) push(c.value_name, v.picture_ids);
         }
     }
-    if (!colores.size && Array.isArray(item.attributes)) {
-        for (const a of item.attributes) {
-            if (a.id === 'COLOR' && a.value_name) colores.add(a.value_name.trim());
-        }
+    if (!colores.length && Array.isArray(item.attributes)) {
+        const c = item.attributes.find(a => a.id === 'COLOR');
+        if (c) push(c.value_name, null);
     }
-    return [...colores].join(',');
+    return { colores: colores.join(','), colorFotos: JSON.stringify(colorFotos) };
 }
 
 app.post('/api/ml/import', async (req, res) => {
@@ -602,12 +619,11 @@ app.post('/api/ml/import', async (req, res) => {
         let importados = 0;
         let actualizados = 0;
         for (const item of items) {
-            const mlHighRes = u => u.replace(/^http:\/\//, 'https://').replace(/-[A-Z](\.(?:jpe?g|png|webp))$/i, '-O$1');
             const fotos = item.pictures?.length
                 ? item.pictures.map(p => mlHighRes(p.url || p.secure_url || '')).filter(Boolean).join(',')
                 : mlHighRes(item.thumbnail || '');
             const publicar = item.status === 'active';
-            const colores = extraerColores(item);
+            const { colores, colorFotos } = extraerColoresYFotos(item);
 
             // La descripcion real de ML vive en un endpoint aparte; short_description suele venir vacio
             let descripcion = item.short_description?.content || '';
@@ -624,6 +640,7 @@ app.post('/api/ml/import', async (req, res) => {
                         cantidad = ${item.available_quantity || 0},
                         publicareshop = ${publicar},
                         colores = ${colores},
+                        colorfotos = ${colorFotos},
                         fotos = CASE WHEN fotos = '' OR fotos IS NULL THEN ${fotos} ELSE fotos END,
                         descripcion = CASE WHEN descripcion = '' OR descripcion IS NULL THEN ${descripcion} ELSE descripcion END
                     WHERE id = ${existing.id}
@@ -634,8 +651,8 @@ app.post('/api/ml/import', async (req, res) => {
 
             const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
             await sql`
-                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, colores)
-                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${fotos}, 'Terminado', ${fecha}, ${publicar}, ${item.available_quantity || 0}, ${item.id}, ${descripcion}, ${colores})
+                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, colores, colorfotos)
+                VALUES (${id}, ${item.title || ''}, '', '', '', 0, ${item.price || 0}, 0, ${fotos}, 'Terminado', ${fecha}, ${publicar}, ${item.available_quantity || 0}, ${item.id}, ${descripcion}, ${colores}, ${colorFotos})
             `;
             yaImportados.set(item.id, { id });
             importados++;

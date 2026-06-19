@@ -27,6 +27,10 @@ async function cargarProducto() {
         // El boton flotante en esta pagina tambien lleva el mensaje del producto
         document.querySelector('.whatsapp-float')?.setAttribute('href', whatsappUrl);
 
+        const colores = fotosArray(p.colores);
+        let colorFotos = {};
+        try { colorFotos = JSON.parse(p.colorfotos || '{}'); } catch { colorFotos = {}; }
+
         actualizarSEO(p, fotos[0], precio, sinStock);
 
         let galeriaHTML = '';
@@ -56,12 +60,17 @@ async function cargarProducto() {
                     <div class="producto-stock ${sinStock ? 'stock-no' : 'stock-ok'}">
                         ${sinStock ? `${icon('close')} Agotado` : `${icon('check')} ${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                     </div>
-                    ${fotosArray(p.colores).length ? `
+                    ${colores.length ? `
                     <div class="producto-colores">
-                        <span class="producto-colores-label">Colores disponibles</span>
-                        <div class="producto-colores-row">
-                            ${coloresChips(p.colores, 12)}
-                            <span class="producto-colores-nombres">${escapeHTML(fotosArray(p.colores).join(' · '))}</span>
+                        <span class="producto-colores-label">Color: <strong id="colorActivo">${escapeHTML(colores[0])}</strong></span>
+                        <div class="producto-colores-row" id="coloresRow">
+                            ${colores.map((c, i) => {
+                                const hex = colorHex(c);
+                                const cls = hex === 'transparent' ? 'swatch swatch-transparente' : hex ? 'swatch' : 'swatch swatch-otro';
+                                const style = (hex && hex !== 'transparent') ? `style="background:${hex}"` : '';
+                                const url = colorFotos[c] || '';
+                                return `<button type="button" class="${cls} swatch-btn ${i === 0 ? 'swatch-active' : ''}" ${style} title="${escapeHTML(c)}" aria-label="${escapeHTML(c)}" data-color="${escapeHTML(c)}" data-url="${escapeHTML(safeHref(url))}" onclick="seleccionarColor(this)"></button>`;
+                            }).join('')}
                         </div>
                     </div>` : ''}
                     <div class="producto-ctas">
@@ -105,6 +114,26 @@ function cambiarFoto(el, src) {
     document.getElementById('galleryMain').src = src;
     document.querySelectorAll('.producto-gallery-thumbs img').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
+}
+
+function seleccionarColor(btn) {
+    const nombre = btn.dataset.color;
+    const url = btn.dataset.url;
+
+    const label = document.getElementById('colorActivo');
+    if (label) label.textContent = nombre;
+
+    document.querySelectorAll('#coloresRow .swatch-btn').forEach(b => b.classList.remove('swatch-active'));
+    btn.classList.add('swatch-active');
+
+    if (url && url !== '#') {
+        const main = document.getElementById('galleryMain');
+        if (main) main.src = url;
+        // marcar como activa la miniatura que coincida con la foto del color
+        document.querySelectorAll('.producto-gallery-thumbs img').forEach(img => {
+            img.classList.toggle('active', img.getAttribute('src') === url);
+        });
+    }
 }
 
 // Meta tags Open Graph + datos estructurados para vista previa al compartir y SEO

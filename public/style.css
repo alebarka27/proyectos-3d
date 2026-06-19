@@ -843,9 +843,15 @@ td a:hover { text-decoration: underline; }
     font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
     font-weight: 600; color: var(--text-faint);
 }
-.producto-colores-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.producto-colores-row .swatch { width: 18px; height: 18px; }
-.producto-colores-nombres { font-size: 13.5px; color: var(--text-dim); }
+.producto-colores-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.producto-colores-row .swatch { width: 22px; height: 22px; }
+.producto-colores-label strong { color: var(--text); font-weight: 600; }
+
+/* Swatch interactivo (clickeable) */
+.swatch-btn { cursor: pointer; padding: 0; transition: transform .1s ease, box-shadow .15s ease; }
+.swatch-btn:hover { transform: scale(1.12); }
+.swatch-btn:focus-visible { outline: none; }
+.swatch-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
 
 .producto-descripcion {
     line-height: 1.7;
