@@ -24,6 +24,8 @@ async function cargarProducto() {
         const precio = parseFloat(p.precioventa) || 0;
         const mlUrl = urlML(p.ml_id);
         const whatsappUrl = whatsappHref(`Hola! Me interesa "${p.nombre}" que vi en el catálogo.`);
+        // El boton flotante en esta pagina tambien lleva el mensaje del producto
+        document.querySelector('.whatsapp-float')?.setAttribute('href', whatsappUrl);
 
         actualizarSEO(p, fotos[0], precio, sinStock);
 
