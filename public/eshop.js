@@ -103,9 +103,9 @@ function mostrarProductos(productos, q) {
 
 function renderProducto(p) {
     const fotoRaw = (p.fotos || '').split(',')[0]?.trim();
-    const foto = mlHighResImage(fotoRaw);
+    const foto = mlGridImage(fotoRaw);
     const img = foto
-        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
+        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy" decoding="async">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;

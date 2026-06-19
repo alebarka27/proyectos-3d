@@ -237,9 +237,9 @@ async function ejecutarBusqueda(q) {
 }
 
 function renderProductCard(p) {
-    const foto = mlHighResImage((p.fotos || '').split(',')[0]?.trim());
+    const foto = mlGridImage((p.fotos || '').split(',')[0]?.trim());
     const img = foto
-        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy">`
+        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy" decoding="async">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
     const sinStock = !p.cantidad || p.cantidad <= 0;
     const precio = parseFloat(p.precioventa) || 0;

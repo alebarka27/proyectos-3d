@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const {
     escapeHTML, safeHref, formatearPrecio, urlML,
-    extraerMLId, mlHighResImage, fotosArray, whatsappHref,
+    extraerMLId, mlHighResImage, mlGridImage, fotosArray, whatsappHref,
     colorHex, coloresChips,
 } = require('../public/utils.js');
 
@@ -71,6 +71,18 @@ test('mlHighResImage convierte miniaturas de ML a alta resolucion', () => {
     // URLs que no son de ML quedan intactas
     assert.strictEqual(mlHighResImage('https://otro.com/foto-I.jpg'), 'https://otro.com/foto-I.jpg');
     assert.strictEqual(mlHighResImage(''), '');
+});
+
+test('mlGridImage baja la resolucion 2x a 1x para grillas', () => {
+    assert.strictEqual(
+        mlGridImage('https://http2.mlstatic.com/D_NQ_NP_2X_859-MLA-O.webp'),
+        'https://http2.mlstatic.com/D_NQ_NP_859-MLA-O.webp'
+    );
+    // sin 2x: solo eleva a -O
+    assert.strictEqual(
+        mlGridImage('https://http2.mlstatic.com/D_NQ_NP_777-MLA-I.jpg'),
+        'https://http2.mlstatic.com/D_NQ_NP_777-MLA-O.jpg'
+    );
 });
 
 test('fotosArray separa por comas y limpia vacios', () => {

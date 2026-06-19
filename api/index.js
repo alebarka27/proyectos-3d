@@ -10,6 +10,11 @@ const ml = require('./ml');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Cache en el edge de Vercel para endpoints publicos (la tienda cambia poco).
+// s-maxage: cachea 2 min; stale-while-revalidate: sirve cache viejo hasta 10 min
+// mientras revalida en segundo plano.
+const CACHE_PUBLICO = 'public, s-maxage=120, stale-while-revalidate=600';
+
 app.set('trust proxy', true);
 app.use(express.json());
 
@@ -359,6 +364,7 @@ app.get('/api/eshop', async (req, res) => {
         const { rows } = categoria
             ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
             : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
+        res.set('Cache-Control', CACHE_PUBLICO);
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -373,6 +379,7 @@ app.get('/api/destacados', async (req, res) => {
             ORDER BY vendidos DESC, destacado DESC
             LIMIT 8
         `;
+        res.set('Cache-Control', CACHE_PUBLICO);
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -412,6 +419,7 @@ app.get('/api/producto/:id', async (req, res) => {
             similares = sim;
         }
 
+        res.set('Cache-Control', CACHE_PUBLICO);
         res.json({ producto: p, similares });
     } catch (err) {
         res.status(500).json({ error: err.message });

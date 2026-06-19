@@ -52,6 +52,12 @@ function mlHighResImage(url) {
     return url.replace(/-[A-Z](\.(?:jpe?g|png|webp))$/i, '-O$1');
 }
 
+// Version liviana para grillas: baja la resolucion 2x de ML a 1x (~500px),
+// suficiente para tarjetas. La ficha de producto sigue usando -O (full).
+function mlGridImage(url) {
+    return mlHighResImage(url).replace('_2X_', '_');
+}
+
 function fotosArray(fotos) {
     return (fotos || '').split(',').map(s => s.trim()).filter(Boolean);
 }
@@ -105,7 +111,7 @@ if (typeof document !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         escapeHTML, safeHref, WHATSAPP_NUMERO, whatsappHref,
-        formatearPrecio, urlML, extraerMLId, mlHighResImage, fotosArray,
+        formatearPrecio, urlML, extraerMLId, mlHighResImage, mlGridImage, fotosArray,
         colorHex, coloresChips,
     };
 }
