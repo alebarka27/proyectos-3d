@@ -249,31 +249,6 @@ async function setItemDescription(itemId, text) {
     return await res.json();
 }
 
-// Envia un mensaje post-venta al comprador (mensajeria interna de ML).
-// packId: para ordenes sin carrito, es igual al order_id.
-// Para insertar un link clickeable se usa <a href="url">texto</a> dentro del texto.
-async function sendMessage(packId, sellerId, buyerId, text) {
-    const token = await getValidToken();
-    if (!token) throw new Error('ML no conectado');
-    const res = await fetch(`${ML_API}/messages/packs/${packId}/sellers/${sellerId}?tag=post_sale`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-            from: { user_id: String(sellerId) },
-            to: { user_id: String(buyerId) },
-            text,
-        }),
-    });
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Error al enviar mensaje ML: ${res.status} - ${err}`);
-    }
-    return await res.json();
-}
-
 function parseMLId(valor) {
     if (!valor) return '';
     const match = valor.match(/MLA-?\d+/);
@@ -293,7 +268,6 @@ module.exports = {
     getItemDescription,
     updateItem,
     getOrder,
-    sendMessage,
     predictCategory,
     createItem,
     setItemDescription,
