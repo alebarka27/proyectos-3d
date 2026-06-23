@@ -47,16 +47,16 @@ async function cargarProducto() {
         if (fotos.length) {
             galeriaHTML = `
                 <div class="producto-gallery-main">
-                    <img id="galleryMain" src="${escapeHTML(safeHref(fotos[0]))}" alt="${escapeHTML(p.nombre)}">
+                    <img id="galleryMain" src="${escapeHTML(safeHref(fotos[0]))}" alt="${escapeHTML(p.nombre)}" onerror="imgFallback(this)">
                 </div>
-                ${fotos.length > 1 ? `<div class="producto-gallery-thumbs">${fotos.map((f, i) => `<img src="${escapeHTML(safeHref(f))}" class="${i === 0 ? 'active' : ''}" onclick="cambiarFoto(this, '${escapeHTML(safeHref(f))}')" alt="Foto ${i + 1}">`).join('')}</div>` : ''}
+                ${fotos.length > 1 ? `<div class="producto-gallery-thumbs">${fotos.map((f, i) => `<img src="${escapeHTML(safeHref(f))}" class="${i === 0 ? 'active' : ''}" onclick="cambiarFoto(this, '${escapeHTML(safeHref(f))}')" alt="Foto ${i + 1}" onerror="imgFallback(this)">`).join('')}</div>` : ''}
             `;
         } else {
             galeriaHTML = `<div class="producto-gallery-main"><div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div></div>`;
         }
 
         main.innerHTML = `
-            <a class="producto-back" href="javascript:history.back()">← Volver</a>
+            <a class="producto-back" href="/eshop">← Volver a la tienda</a>
             <div class="producto-layout">
                 <div class="producto-gallery">${galeriaHTML}</div>
                 <div class="producto-info">
@@ -102,7 +102,7 @@ async function cargarProducto() {
                 <h2>Productos similares</h2>
                 <div class="eshop-grid">${data.similares.map(s => {
                     const sFoto = mlGridImage(fotosArray(s.fotos)[0]);
-                    const sImg = sFoto ? `<img src="${escapeHTML(safeHref(sFoto))}" alt="${escapeHTML(s.nombre)}" loading="lazy" decoding="async">` : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
+                    const sImg = sFoto ? `<img src="${escapeHTML(safeHref(sFoto))}" alt="${escapeHTML(s.nombre)}" loading="lazy" decoding="async" onerror="imgFallback(this)">` : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
                     const sPrecio = parseFloat(s.precioventa) || 0;
                     return `
                         <article class="product-card" onclick="window.location.href='/producto.html?id=${s.id}'" style="cursor:pointer">
@@ -121,7 +121,8 @@ async function cargarProducto() {
 }
 
 function cambiarFoto(el, src) {
-    document.getElementById('galleryMain').src = src;
+    const main = document.getElementById('galleryMain');
+    if (main) main.src = src;
     document.querySelectorAll('.producto-gallery-thumbs img').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
 }

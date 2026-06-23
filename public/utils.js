@@ -97,6 +97,15 @@ function coloresChips(coloresStr, max = 6) {
     return `<div class="color-swatches" title="Colores: ${escapeHTML(cols.join(', '))}">${swatches}${extra}</div>`;
 }
 
+// Reemplaza una <img> que no carga (URL caida, foto borrada) por un placeholder.
+function imgFallback(el) {
+    el.onerror = null;
+    const ph = document.createElement('div');
+    ph.className = 'product-img-placeholder';
+    if (typeof icon === 'function') ph.innerHTML = icon('printer', 'icon-lg');
+    el.replaceWith(ph);
+}
+
 /* --- Setea los botones flotantes de WhatsApp en cualquier pagina ---
    Los <a class="whatsapp-float"> y cualquier [data-wa] toman el href de aca,
    asi el numero vive en un solo lugar. (solo navegador) */

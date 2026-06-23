@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0a">
     <title>Tienda — 3D by Aurora</title>
     <meta name="description" content="Catálogo de productos impresos en 3D. Comprá por WhatsApp o Mercado Libre.">
-    <meta property="og:title" content="Catálogo 3D — Productos">
+    <meta property="og:title" content="Tienda — 3D by Aurora">
+    <meta property="og:image" content="/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <link rel="canonical" href="https://proyectos-3d.vercel.app/eshop">
     <meta property="og:description" content="Catálogo de productos impresos en 3D. Comprá por WhatsApp o Mercado Libre.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://proyectos-3d.vercel.app/eshop">
@@ -33,8 +37,8 @@
         <p class="eshop-sub" style="margin-bottom:18px;">Buscá lo que necesitás y coordinamos por WhatsApp, o compralo directo por Mercado Libre.</p>
 
         <div class="search-bar" style="max-width:100%;">
-            <input type="text" id="eshopSearch" placeholder="Buscá por nombre o categoría..." oninput="buscarEshop()" autocomplete="off">
-            <button onclick="buscarEshop()">Buscar</button>
+            <input type="search" id="eshopSearch" placeholder="Buscá por nombre o categoría..." oninput="buscarEshop()" onkeydown="if(event.key==='Enter')buscarEshop()" autocomplete="off" enterkeyhint="search" aria-label="Buscar productos">
+            <button type="button" onclick="buscarEshop()">Buscar</button>
         </div>
 
         <div id="eshopCategorias" class="home-categorias" style="margin-top:16px;margin-bottom:0;"></div>

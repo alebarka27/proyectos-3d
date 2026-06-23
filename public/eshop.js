@@ -46,12 +46,18 @@ function renderCategorias() {
     const container = document.getElementById('eshopCategorias');
     const activoStyle = 'border-color:var(--border-strong);color:var(--text);background:var(--surface-2);';
     container.innerHTML = `
-        <button class="home-cat-btn ${!catSeleccionada ? 'home-cat-btn-active' : ''}" style="${!catSeleccionada ? activoStyle : ''}" onclick="filtrarCategoria('')">Todas</button>
+        <button class="home-cat-btn ${!catSeleccionada ? 'home-cat-btn-active' : ''}" style="${!catSeleccionada ? activoStyle : ''}" data-cat="">Todas</button>
         ${categoriasEshop.map(c => `
-            <button class="home-cat-btn ${catSeleccionada === c ? 'home-cat-btn-active' : ''}" style="${catSeleccionada === c ? activoStyle : ''}" onclick="filtrarCategoria('${escapeHTML(c)}')">${escapeHTML(c)}</button>
+            <button class="home-cat-btn ${catSeleccionada === c ? 'home-cat-btn-active' : ''}" style="${catSeleccionada === c ? activoStyle : ''}" data-cat="${escapeHTML(c)}">${escapeHTML(c)}</button>
         `).join('')}
     `;
 }
+
+// Delegacion: el contenedor persiste aunque se re-renderice su contenido.
+document.getElementById('eshopCategorias').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cat]');
+    if (btn) filtrarCategoria(btn.dataset.cat);
+});
 
 function filtrarCategoria(cat) {
     catSeleccionada = cat;
@@ -104,10 +110,12 @@ function mostrarProductos(productos, q) {
 function renderProducto(p) {
     const fotoRaw = (p.fotos || '').split(',')[0]?.trim();
     const foto = mlGridImage(fotoRaw);
-    const img = foto
-        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy" decoding="async">`
+    const fotoOk = foto && /^https?:\/\//i.test(foto);
+    const img = fotoOk
+        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="lazy" decoding="async" onerror="imgFallback(this)">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
-    const sinStock = !p.cantidad || p.cantidad <= 0;
+    const cant = parseInt(p.cantidad) || 0;
+    const sinStock = cant <= 0;
     const precio = parseFloat(p.precioventa) || 0;
     const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
     const mlUrl = urlML(p.ml_id);
@@ -125,7 +133,7 @@ function renderProducto(p) {
                     </div>` : ''}
                     ${coloresChips(p.colores)}
                     <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                        ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
+                        ${sinStock ? 'Sin stock' : `${cant} disponible${cant !== 1 ? 's' : ''}`}
                     </div>
                 </div>
             </a>
