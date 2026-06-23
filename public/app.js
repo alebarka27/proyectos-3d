@@ -359,6 +359,8 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         descripcion: document.getElementById('descripcion').value,
         destacado: document.getElementById('destacadoCheck').checked,
         publicarEshop: document.getElementById('publicarEshop').checked,
+        esDigital: document.getElementById('esDigitalCheck').checked,
+        driveFileId: document.getElementById('driveFileId').value.trim(),
     };
     const url = id ? `${API_PROY}/${id}` : API_PROY;
     const method = id ? 'PUT' : 'POST';
@@ -385,6 +387,8 @@ async function editar(id) {
     document.getElementById('fotos').value = p.fotos || '';
     document.getElementById('descripcion').value = p.descripcion || '';
     document.getElementById('destacadoCheck').checked = !!p.destacado;
+    document.getElementById('esDigitalCheck').checked = !!p.es_digital;
+    document.getElementById('driveFileId').value = p.drive_file_id || '';
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
     document.getElementById('formOverlay').classList.remove('hidden');

@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const ml = require('./ml');
+const drive = require('./drive');
+const { Readable } = require('stream');
 
 // workaround: ensure no app.get('*') pattern for Express 5 compatibility
 
@@ -114,6 +116,7 @@ app.use((req, res, next) => {
     if (req.path === '/login.html' && authed) return res.redirect('/');
     if (PUBLIC_PATHS.has(req.path)) return next();
     if (req.path.startsWith('/api/producto/')) return next();
+    if (req.path.startsWith('/api/descargar/')) return next();
     if (authed) return next();
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
     return res.redirect('/login.html');
@@ -175,6 +178,20 @@ async function initDB() {
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS destacado BOOLEAN DEFAULT FALSE;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colores TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colorfotos TEXT DEFAULT '';`;
+        // Productos digitales (archivos STL servidos desde Google Drive)
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS es_digital BOOLEAN DEFAULT FALSE;`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS drive_file_id TEXT DEFAULT '';`;
+        // Tokens de descarga generados al vender un producto digital
+        await sql`
+            CREATE TABLE IF NOT EXISTS descargas (
+                token TEXT PRIMARY KEY,
+                proyectoid TEXT DEFAULT '',
+                ml_order_id TEXT DEFAULT '',
+                vence BIGINT DEFAULT 0,
+                descargas_restantes INTEGER DEFAULT 5,
+                fecha TEXT DEFAULT ''
+            );
+        `;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -280,13 +297,13 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id)
             VALUES (${id}, ${nombre || ''}, ${codigo || ''}, ${categoria || ''}, ${linkArchivo || ''},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
-                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado})
+                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${!!esDigital}, ${driveFileId || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -297,7 +314,7 @@ app.post('/api/proyectos', async (req, res) => {
 
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado } = req.body;
+        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
         const { rowCount } = await sql`
             UPDATE proyectos SET
                 nombre=${nombre || ''}, codigo=${codigo || ''}, categoria=${categoria || ''},
@@ -305,7 +322,8 @@ app.put('/api/proyectos/:id', async (req, res) => {
                 precioventa=${parseFloat(precioVenta) || 0}, vendidos=${parseInt(vendidos) || 0},
                 fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
                 cantidad=${parseInt(cantidad) || 0}, ml_id=${mlId || ''},
-                descripcion=${descripcion || ''}, destacado=${!!destacado}
+                descripcion=${descripcion || ''}, destacado=${!!destacado},
+                es_digital=${!!esDigital}, drive_file_id=${driveFileId || ''}
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -671,6 +689,46 @@ app.post('/api/ml/import', async (req, res) => {
     }
 });
 
+// Descarga de archivo digital (STL) mediante token unico. Publico: el comprador
+// llega aca desde el mensaje post-venta de ML. Valida vencimiento y cupo, y sirve
+// el archivo desde Google Drive sin exponer el link real de Drive.
+app.get('/api/descargar/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { rows } = await sql`SELECT * FROM descargas WHERE token = ${token}`;
+        if (!rows.length) return res.status(404).send('Link de descarga inválido.');
+        const d = rows[0];
+        if (d.vence && Date.now() > Number(d.vence)) return res.status(410).send('Este link de descarga venció.');
+        if (d.descargas_restantes <= 0) return res.status(410).send('Se agotaron las descargas de este link.');
+
+        const { rows: pr } = await sql`SELECT nombre, drive_file_id FROM proyectos WHERE id = ${d.proyectoid}`;
+        if (!pr.length || !pr[0].drive_file_id) return res.status(404).send('Archivo no disponible.');
+        const fileId = pr[0].drive_file_id;
+
+        const meta = await drive.getFileMeta(fileId).catch(() => ({}));
+        const fileRes = await drive.getFileResponse(fileId);
+
+        const nombreBase = (pr[0].nombre || 'archivo').trim().replace(/[^\w\-]+/g, '_') || 'archivo';
+        const ext = (meta.name && meta.name.includes('.')) ? meta.name.split('.').pop() : 'stl';
+        const filename = `${nombreBase}.${ext}`;
+
+        res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
+        if (meta.size) res.setHeader('Content-Length', meta.size);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+        // Descontar un cupo solo si la descarga se completa
+        res.on('finish', () => {
+            sql`UPDATE descargas SET descargas_restantes = descargas_restantes - 1 WHERE token = ${token}`
+                .catch(e => console.error('No se pudo descontar descarga:', e.message));
+        });
+
+        Readable.fromWeb(fileRes.body).pipe(res);
+    } catch (err) {
+        console.error('Descarga error:', err);
+        if (!res.headersSent) res.status(500).send('Error al descargar el archivo. Probá de nuevo más tarde.');
+    }
+});
+
 app.post('/api/ml/webhook', async (req, res) => {
     try {
         const { topic, resource, user_id } = req.body;
@@ -690,9 +748,10 @@ app.post('/api/ml/webhook', async (req, res) => {
                 const mlItemId = item.item.id;
                 const cant = Math.max(1, parseInt(item.quantity) || 1);
                 const precio = item.unit_price || 0;
-                const { rows } = await sql`SELECT id FROM proyectos WHERE ml_id LIKE '%' || ${mlItemId} || '%'`;
+                const { rows } = await sql`SELECT id, nombre, es_digital, drive_file_id FROM proyectos WHERE ml_id LIKE '%' || ${mlItemId} || '%'`;
                 if (rows.length) {
-                    const pId = rows[0].id;
+                    const proy = rows[0];
+                    const pId = proy.id;
                     await sql`UPDATE proyectos SET cantidad = GREATEST(0, cantidad - ${cant}) WHERE id = ${pId}`;
                     const ventaId = Date.now().toString() + Math.random().toString(36).slice(2, 6);
                     const fecha = new Date().toISOString().split('T')[0];
@@ -701,6 +760,28 @@ app.post('/api/ml/webhook', async (req, res) => {
                         VALUES (${ventaId}, ${pId}, ${cant}, ${precio}, 0, ${precio * cant}, ${fecha})
                     `;
                     console.log(`Venta ML auto-registrada: ${mlItemId} x${cant} -> proyecto ${pId}`);
+
+                    // Entrega digital automatica: genera token y manda link por mensaje de ML
+                    if (proy.es_digital && proy.drive_file_id) {
+                        try {
+                            const token = crypto.randomBytes(24).toString('hex');
+                            const vence = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 dias
+                            await sql`
+                                INSERT INTO descargas (token, proyectoid, ml_order_id, vence, descargas_restantes, fecha)
+                                VALUES (${token}, ${pId}, ${String(orderId)}, ${vence}, 5, ${fecha})
+                            `;
+                            const base = `${req.protocol}://${req.get('host')}`;
+                            const url = `${base}/api/descargar/${token}`;
+                            const packId = order.pack_id || orderId;
+                            const buyerId = order.buyer?.id;
+                            const sellerId = order.seller?.id || ourUserId;
+                            const texto = `¡Gracias por tu compra! Descargá tu archivo acá: <a href="${url}">Descargar archivo</a> El link vence en 7 días (5 descargas).`;
+                            await ml.sendMessage(packId, sellerId, buyerId, texto);
+                            console.log(`Entrega digital enviada: proyecto ${pId} -> orden ${orderId}`);
+                        } catch (e) {
+                            console.error(`Error en entrega digital (orden ${orderId}):`, e.message);
+                        }
+                    }
                 }
             }
         }
