@@ -363,8 +363,9 @@ app.post('/api/proyectos/bulk', async (req, res) => {
     }
 });
 
-// Link de descarga estable del producto + mensaje listo para copiar y pegarle al
-// comprador en el chat de ML (entrega manual). Reusa o crea un token sin orden.
+// Link directo de Google Drive del archivo del producto + mensaje listo para copiar
+// y pegarle al comprador en el chat de ML (entrega manual). El archivo debe estar
+// compartido en Drive como "cualquiera con el enlace" (lector).
 app.get('/api/proyectos/:id/download-link', async (req, res) => {
     try {
         const { rows } = await sql`SELECT id, nombre, es_digital, drive_file_id FROM proyectos WHERE id = ${req.params.id}`;
@@ -372,18 +373,9 @@ app.get('/api/proyectos/:id/download-link', async (req, res) => {
         const p = rows[0];
         if (!p.es_digital || !p.drive_file_id) return res.json({ disponible: false, link: '', mensaje: '' });
 
-        let { rows: ex } = await sql`SELECT token FROM descargas WHERE proyectoid = ${p.id} AND (ml_order_id = '' OR ml_order_id IS NULL) ORDER BY fecha DESC LIMIT 1`;
-        let token;
-        if (ex.length) {
-            token = ex[0].token;
-        } else {
-            token = crypto.randomBytes(24).toString('hex');
-            const fecha = new Date().toISOString().split('T')[0];
-            await sql`INSERT INTO descargas (token, proyectoid, ml_order_id, vence, descargas_restantes, fecha) VALUES (${token}, ${p.id}, '', 0, 1000000, ${fecha})`;
-        }
-        const base = `${req.protocol}://${req.get('host')}`;
-        const link = `${base}/api/descargar/${token}`;
-        const mensaje = `¡Hola! Somos Aurora3, ¡muchas gracias por tu compra! Acá tenés tu archivo para descargar: ${link} Guardalo bien. ¡Que lo disfrutes!`;
+        const fileId = drive.fileIdFrom(p.drive_file_id);
+        const link = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
+        const mensaje = `¡Hola! Somos Aurora3, ¡muchas gracias por tu compra! Acá tenés tu archivo: ${link} Podés descargarlo o guardarlo en tu Drive, te queda para siempre. ¡Que lo disfrutes!`;
         res.json({ disponible: true, link, mensaje });
     } catch (err) {
         res.status(500).json({ error: err.message });
