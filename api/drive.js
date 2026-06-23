@@ -22,6 +22,17 @@ function isConfigured() {
     return !!(SA_EMAIL && SA_KEY);
 }
 
+// Acepta tanto un ID de archivo como un link completo de Drive y devuelve el ID.
+function fileIdFrom(value) {
+    if (!value) return '';
+    const v = String(value).trim();
+    let m = v.match(/\/d\/([a-zA-Z0-9_-]+)/);   // .../file/d/<ID>/view
+    if (m) return m[1];
+    m = v.match(/[?&]id=([a-zA-Z0-9_-]+)/);      // ...?id=<ID>
+    if (m) return m[1];
+    return v;                                     // ya es un ID limpio
+}
+
 async function getAccessToken() {
     if (!isConfigured()) throw new Error('Google Drive no configurado (faltan GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_PRIVATE_KEY)');
     if (cachedToken && Date.now() < cachedExp - 60000) return cachedToken;
@@ -76,6 +87,7 @@ async function getFileResponse(fileId) {
 
 module.exports = {
     isConfigured,
+    fileIdFrom,
     getFileMeta,
     getFileResponse,
 };

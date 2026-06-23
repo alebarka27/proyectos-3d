@@ -805,7 +805,7 @@ app.get('/api/descargar/:token', async (req, res) => {
 
         const { rows: pr } = await sql`SELECT nombre, drive_file_id FROM proyectos WHERE id = ${d.proyectoid}`;
         if (!pr.length || !pr[0].drive_file_id) return res.status(404).send('Archivo no disponible.');
-        const fileId = pr[0].drive_file_id;
+        const fileId = drive.fileIdFrom(pr[0].drive_file_id);
 
         const meta = await drive.getFileMeta(fileId).catch(() => ({}));
 
