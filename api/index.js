@@ -375,7 +375,14 @@ app.get('/api/proyectos/:id/download-link', async (req, res) => {
 
         const fileId = drive.fileIdFrom(p.drive_file_id);
         const link = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
-        const mensaje = `¡Hola! Somos Aurora3, ¡muchas gracias por tu compra! Acá tenés tu archivo: ${link} Podés descargarlo o guardarlo en tu Drive, te queda para siempre. ¡Que lo disfrutes!`;
+        const mensaje = `¡Hola! Muchas gracias por tu compra en AURORA.3D. 🌌✨
+
+Aquí tienes el enlace para descargar tu archivo digital en formato STL:
+👉 ${link}
+
+Nota importante: Para ayudarnos a procesar todo correctamente, por favor ingresa a los detalles de tu compra en Mercado Libre y marca la opción "Ya tengo el producto" o "Recibí el producto". Esto nos ayuda muchísimo a seguir creciendo.
+
+Si tienes alguna duda con el archivo o necesitas asistencia, escríbenos por acá. ¡Que disfrutes tu impresión! 🚀`;
         res.json({ disponible: true, link, mensaje });
     } catch (err) {
         res.status(500).json({ error: err.message });
