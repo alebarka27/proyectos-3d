@@ -800,7 +800,8 @@ app.get('/api/descargar/:token', async (req, res) => {
         const { rows } = await sql`SELECT * FROM descargas WHERE token = ${token}`;
         if (!rows.length) return res.status(404).send('Link de descarga inválido.');
         const d = rows[0];
-        if (d.vence && Date.now() > Number(d.vence)) return res.status(410).send('Este link de descarga venció.');
+        // vence puede venir como string (BIGINT). 0 = no vence nunca.
+        if (Number(d.vence) > 0 && Date.now() > Number(d.vence)) return res.status(410).send('Este link de descarga venció.');
         if (d.descargas_restantes <= 0) return res.status(410).send('Se agotaron las descargas de este link.');
 
         const { rows: pr } = await sql`SELECT nombre, drive_file_id FROM proyectos WHERE id = ${d.proyectoid}`;
