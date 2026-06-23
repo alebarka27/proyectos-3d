@@ -307,7 +307,10 @@ function renderTabla() {
                 <td data-label="Nombre">${escapeHTML(p.nombre)}${digitalBadges(p)}</td>
                 <td data-label="Código">${escapeHTML(p.codigo)}</td>
                 <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
-                <td data-label="Link Archivo">${p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '-'}</td>
+                <td data-label="Link Archivo">${[
+                    p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '',
+                    p.drive_file_id ? `<a href="https://drive.google.com/file/d/${escapeHTML(p.drive_file_id)}/view" target="_blank" rel="noopener noreferrer" title="Abrir en Google Drive">${icon('link-external')} Drive</a>` : ''
+                ].filter(Boolean).join(' ') || '-'}</td>
                 <td data-label="Costo">${costo ? '$'+costo : '-'}</td>
                 <td data-label="Precio Vta">${pv ? '$'+pv : '-'}</td>
                 <td data-label="Vend.">${vend || '-'}</td>

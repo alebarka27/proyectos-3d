@@ -876,17 +876,17 @@ app.post('/api/ml/webhook', async (req, res) => {
                     if (proy.es_digital && proy.drive_file_id) {
                         try {
                             const token = crypto.randomBytes(24).toString('hex');
-                            const vence = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 dias
+                            const vence = 0; // 0 = el link no vence nunca
                             await sql`
                                 INSERT INTO descargas (token, proyectoid, ml_order_id, vence, descargas_restantes, fecha)
-                                VALUES (${token}, ${pId}, ${String(orderId)}, ${vence}, 5, ${fecha})
+                                VALUES (${token}, ${pId}, ${String(orderId)}, ${vence}, 10, ${fecha})
                             `;
                             const base = `${req.protocol}://${req.get('host')}`;
                             const url = `${base}/api/descargar/${token}`;
                             const packId = order.pack_id || orderId;
                             const buyerId = order.buyer?.id;
                             const sellerId = order.seller?.id || ourUserId;
-                            const texto = `¡Gracias por tu compra! Descargá tu archivo acá: <a href="${url}">Descargar archivo</a> El link vence en 7 días (5 descargas).`;
+                            const texto = `¡Gracias por tu compra! Descargá tu archivo acá: <a href="${url}">Descargar archivo</a> El link queda disponible (hasta 10 descargas). ¡Guardá el archivo!`;
                             await ml.sendMessage(packId, sellerId, buyerId, texto);
                             console.log(`Entrega digital enviada: proyecto ${pId} -> orden ${orderId}`);
                         } catch (e) {
