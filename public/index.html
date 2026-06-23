@@ -99,8 +99,15 @@
                         <label>Stock en tienda <input type="number" id="cantidad" step="1" placeholder="0 = sin stock"></label>
                         <label>ID Mercado Libre <input type="text" id="mlId" placeholder="Ej: MLA1234567890 (opcional)"></label>
                         <label class="checkbox-label"><input type="checkbox" id="destacadoCheck"> Destacar en la página principal (Más vendidos)</label>
-                        <label class="checkbox-label"><input type="checkbox" id="esDigitalCheck"> Producto digital (archivo STL) — entrega automática al venderse en ML</label>
-                        <label>ID del archivo en Google Drive <input type="text" id="driveFileId" placeholder="Ej: 1AbCdEfGh... (ID del STL en tu Drive)"></label>
+                        <label class="checkbox-label"><input type="checkbox" id="esDigitalCheck"> Producto digital (archivo para descargar)</label>
+                        <label>ID o link del archivo en Google Drive <input type="text" id="driveFileId" placeholder="Pegá el ID o el link del archivo en tu Drive"></label>
+                        <div id="downloadCopyRow" class="hidden">
+                            <label>Mensaje + link para enviarle al comprador
+                                <textarea id="downloadMsg" rows="3" readonly style="width:100%;padding:10px 12px;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text);font-family:inherit;resize:vertical;"></textarea>
+                            </label>
+                            <button type="button" class="btn-primary" onclick="copiarMensajeDescarga()">Copiar mensaje + link</button>
+                            <p class="muted" style="margin-top:6px;">Pegalo en el chat de Mercado Libre cuando te compren.</p>
+                        </div>
                         <label>Fotos (URLs, separadas por comas) <input type="text" id="fotos" placeholder="https://..., https://..."></label>
                         <label>Descripción <textarea id="descripcion" rows="3" style="width:100%;padding:10px 12px;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);font-family:inherit;resize:vertical;" placeholder="Materiales, medidas, colores disponibles..."></textarea></label>
                         <label>Estado

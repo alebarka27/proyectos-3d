@@ -363,6 +363,33 @@ app.post('/api/proyectos/bulk', async (req, res) => {
     }
 });
 
+// Link de descarga estable del producto + mensaje listo para copiar y pegarle al
+// comprador en el chat de ML (entrega manual). Reusa o crea un token sin orden.
+app.get('/api/proyectos/:id/download-link', async (req, res) => {
+    try {
+        const { rows } = await sql`SELECT id, nombre, es_digital, drive_file_id FROM proyectos WHERE id = ${req.params.id}`;
+        if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+        const p = rows[0];
+        if (!p.es_digital || !p.drive_file_id) return res.json({ disponible: false, link: '', mensaje: '' });
+
+        let { rows: ex } = await sql`SELECT token FROM descargas WHERE proyectoid = ${p.id} AND (ml_order_id = '' OR ml_order_id IS NULL) ORDER BY fecha DESC LIMIT 1`;
+        let token;
+        if (ex.length) {
+            token = ex[0].token;
+        } else {
+            token = crypto.randomBytes(24).toString('hex');
+            const fecha = new Date().toISOString().split('T')[0];
+            await sql`INSERT INTO descargas (token, proyectoid, ml_order_id, vence, descargas_restantes, fecha) VALUES (${token}, ${p.id}, '', 0, 1000000, ${fecha})`;
+        }
+        const base = `${req.protocol}://${req.get('host')}`;
+        const link = `${base}/api/descargar/${token}`;
+        const mensaje = `¡Hola! Somos Aurora3, ¡muchas gracias por tu compra! Acá tenés tu archivo para descargar: ${link} Guardalo bien. ¡Que lo disfrutes!`;
+        res.json({ disponible: true, link, mensaje });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
         const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
@@ -872,28 +899,9 @@ app.post('/api/ml/webhook', async (req, res) => {
                         VALUES (${ventaId}, ${pId}, ${cant}, ${precio}, 0, ${precio * cant}, ${fecha})
                     `;
                     console.log(`Venta ML auto-registrada: ${mlItemId} x${cant} -> proyecto ${pId}`);
-
-                    // Entrega digital automatica: genera token y manda link por mensaje de ML
-                    if (proy.es_digital && proy.drive_file_id) {
-                        try {
-                            const token = crypto.randomBytes(24).toString('hex');
-                            const vence = 0; // 0 = el link no vence nunca
-                            await sql`
-                                INSERT INTO descargas (token, proyectoid, ml_order_id, vence, descargas_restantes, fecha)
-                                VALUES (${token}, ${pId}, ${String(orderId)}, ${vence}, 10, ${fecha})
-                            `;
-                            const base = `${req.protocol}://${req.get('host')}`;
-                            const url = `${base}/api/descargar/${token}`;
-                            const packId = order.pack_id || orderId;
-                            const buyerId = order.buyer?.id;
-                            const sellerId = order.seller?.id || ourUserId;
-                            const texto = `¡Hola! Somos Aurora3, ¡gracias por tu compra! Descargá tu archivo acá: <a href="${url}">Descargar archivo</a> El link queda disponible (hasta 10 descargas). ¡Guardá bien el archivo!`;
-                            await ml.sendMessage(packId, sellerId, buyerId, texto);
-                            console.log(`Entrega digital enviada: proyecto ${pId} -> orden ${orderId}`);
-                        } catch (e) {
-                            console.error(`Error en entrega digital (orden ${orderId}):`, e.message);
-                        }
-                    }
+                    // Nota: la entrega del archivo digital es manual (ML bloquea el envio
+                    // de mensajes con links por API). El vendedor copia el link del producto
+                    // desde el panel y lo pega en el chat de ML. Ver /api/proyectos/:id/download-link
                 }
             }
         }

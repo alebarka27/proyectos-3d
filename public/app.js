@@ -339,6 +339,7 @@ document.getElementById('btnNuevo').onclick = () => {
     document.getElementById('formTitle').textContent = 'Nuevo Proyecto';
     document.getElementById('projectForm').reset();
     document.getElementById('editId').value = '';
+    document.getElementById('downloadCopyRow').classList.add('hidden');
     document.getElementById('formOverlay').classList.remove('hidden');
 };
 
@@ -396,7 +397,33 @@ async function editar(id) {
     document.getElementById('driveFileId').value = p.drive_file_id || '';
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
+    actualizarCopyDescarga(p);
     document.getElementById('formOverlay').classList.remove('hidden');
+}
+
+// Trae (o crea) el link de descarga del producto y muestra el mensaje listo para copiar.
+async function actualizarCopyDescarga(p) {
+    const row = document.getElementById('downloadCopyRow');
+    if (!p || !p.es_digital || !p.drive_file_id) { row.classList.add('hidden'); return; }
+    try {
+        const res = await apiFetch(`${API_PROY}/${p.id}/download-link`);
+        const data = await res.json();
+        if (data.disponible && data.mensaje) {
+            document.getElementById('downloadMsg').value = data.mensaje;
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    } catch { row.classList.add('hidden'); }
+}
+
+function copiarMensajeDescarga() {
+    const txt = document.getElementById('downloadMsg').value;
+    if (!txt) return;
+    navigator.clipboard.writeText(txt).then(
+        () => showToast('Mensaje + link copiado', 'success'),
+        () => showToast('No se pudo copiar', 'error')
+    );
 }
 
 async function eliminar(id) {
