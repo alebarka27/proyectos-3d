@@ -280,7 +280,8 @@ let tiendaTimeout = null;
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 
 function renderTabla() {
-    const filtrados = catActual ? todosProyectos.filter(p => p.categoria === catActual) : todosProyectos;
+    let filtrados = catActual ? todosProyectos.filter(p => p.categoria === catActual) : todosProyectos;
+    if (soloDigitales) filtrados = filtrados.filter(p => p.es_digital);
     const tbody = document.getElementById('tbody');
     if (!filtrados.length) {
         tbody.innerHTML = `
@@ -303,7 +304,7 @@ function renderTabla() {
         const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
         return `
             <tr>
-                <td data-label="Nombre">${escapeHTML(p.nombre)}</td>
+                <td data-label="Nombre">${escapeHTML(p.nombre)}${digitalBadges(p)}</td>
                 <td data-label="Código">${escapeHTML(p.codigo)}</td>
                 <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
                 <td data-label="Link Archivo">${p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '-'}</td>
@@ -312,10 +313,11 @@ function renderTabla() {
                 <td data-label="Vend.">${vend || '-'}</td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
-                <td data-label="ML">${p.ml_id ? `<a href="${urlML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">${icon('link-external')} ML</a>` : '-'}</td>
+                <td data-label="ML">${p.ml_id ? `<a href="${urlML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">${icon('link-external')} ML</a>` : `<button class="btn-sm" onclick="abrirPublicarML('${p.id}')">${icon('box')} Publicar</button>`}</td>
                 <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? `${icon('bag')} En tienda` : `${icon('box')} Publicar`}</button></td>
                 <td data-label="Acciones">
                     <button class="btn-sm" onclick="editar('${p.id}')">${icon('pencil')}</button>
+                    <button class="btn-sm" title="Duplicar" onclick="duplicarProyecto('${p.id}')">${icon('clipboard')}</button>
                     <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">${icon('trash')}</button>
                 </td>
             </tr>`;
@@ -412,6 +414,118 @@ async function toggleEshop(id, actual) {
 
 async function marcarVendido(id) {
     await apiFetch(`${API_PROY}/${id}/vender`, { method: 'PATCH' });
+    cargar();
+}
+
+/* --- Productos digitales / publicar en ML / carga masiva --- */
+
+let soloDigitales = false;
+
+function toggleSoloDigitales() {
+    soloDigitales = !soloDigitales;
+    const btn = document.getElementById('btnFiltroDigital');
+    if (btn) btn.classList.toggle('btn-eshop-on', soloDigitales);
+    renderTabla();
+}
+
+// Badges de estado para productos digitales (Archivo en Drive / linkeado a ML / listo)
+function digitalBadges(p) {
+    if (!p.es_digital) return '';
+    const archOk = !!p.drive_file_id, mlOk = !!p.ml_id;
+    const listo = archOk && mlOk;
+    return `<div class="badges-digital">
+        <span class="dbadge badge-digital">Digital</span>
+        <span class="dbadge ${archOk ? 'badge-ok' : 'badge-no'}">Archivo ${archOk ? '✓' : '✗'}</span>
+        <span class="dbadge ${mlOk ? 'badge-ok' : 'badge-no'}">ML ${mlOk ? '✓' : '✗'}</span>
+        ${listo ? '<span class="dbadge badge-listo">Listo ✓</span>' : ''}
+    </div>`;
+}
+
+let publicarMLId = null;
+
+function abrirPublicarML(id) {
+    const p = todosProyectos.find(x => x.id === id);
+    if (!p) return;
+    publicarMLId = id;
+    document.getElementById('mlPublishProd').textContent = p.nombre;
+    document.getElementById('mlPublishCat').value = '';
+    document.getElementById('mlPublishTipo').value = 'gold_special';
+    document.getElementById('mlPublishCant').value = p.cantidad > 0 ? p.cantidad : 100;
+    document.getElementById('mlPublishPausar').checked = true;
+    document.getElementById('mlPublishMsg').textContent = '';
+    document.getElementById('btnMlPublishConfirm').disabled = false;
+    document.getElementById('mlPublishOverlay').classList.remove('hidden');
+}
+
+function cerrarPublicarML() {
+    document.getElementById('mlPublishOverlay').classList.add('hidden');
+}
+
+async function confirmarPublicarML() {
+    const btn = document.getElementById('btnMlPublishConfirm');
+    const msg = document.getElementById('mlPublishMsg');
+    btn.disabled = true;
+    msg.textContent = 'Publicando en Mercado Libre...';
+    try {
+        const res = await apiFetch(`${API_PROY}/${publicarMLId}/ml-publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                categoryId: document.getElementById('mlPublishCat').value.trim() || undefined,
+                listingType: document.getElementById('mlPublishTipo').value,
+                cantidad: document.getElementById('mlPublishCant').value,
+                pausar: document.getElementById('mlPublishPausar').checked,
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            msg.textContent = 'Mercado Libre rechazó la publicación: ' + (data.error || 'error desconocido');
+            btn.disabled = false;
+            return;
+        }
+        showToast('Publicado en ML' + (data.status === 'paused' ? ' (pausada para revisar)' : ''), 'success');
+        cerrarPublicarML();
+        cargar();
+    } catch (e) {
+        msg.textContent = 'Error: ' + e.message;
+        btn.disabled = false;
+    }
+}
+
+async function duplicarProyecto(id) {
+    await apiFetch(`${API_PROY}/${id}/duplicar`, { method: 'POST' });
+    showToast('Producto duplicado', 'success');
+    cargar();
+}
+
+function abrirCargaMasiva() {
+    document.getElementById('bulkText').value = '';
+    document.getElementById('bulkMsg').textContent = '';
+    document.getElementById('bulkOverlay').classList.remove('hidden');
+}
+
+function cerrarCargaMasiva() {
+    document.getElementById('bulkOverlay').classList.add('hidden');
+}
+
+async function confirmarCargaMasiva() {
+    const txt = document.getElementById('bulkText').value.trim();
+    const msg = document.getElementById('bulkMsg');
+    if (!txt) { msg.textContent = 'Pegá al menos una línea.'; return; }
+    const items = txt.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+        const [nombre, precioVenta, categoria] = l.split(';').map(s => (s || '').trim());
+        return { nombre, precioVenta, categoria };
+    }).filter(it => it.nombre);
+    if (!items.length) { msg.textContent = 'No se reconoció ningún producto.'; return; }
+    const res = await apiFetch(`${API_PROY}/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = 'Error: ' + (data.error || 'no se pudo'); return; }
+    showToast(`${data.creados} productos creados`, 'success');
+    cerrarCargaMasiva();
     cargar();
 }
 

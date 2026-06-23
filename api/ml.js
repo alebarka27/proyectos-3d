@@ -198,6 +198,57 @@ async function getOrder(orderId) {
     return await res.json();
 }
 
+// Predice la categoria de ML a partir del titulo del producto.
+// Devuelve la prediccion mas probable (la primera) o null.
+async function predictCategory(title) {
+    const token = await getValidToken();
+    if (!token) throw new Error('ML no conectado');
+    const res = await fetch(`${ML_API}/sites/MLA/domain_discovery/search?limit=3&q=${encodeURIComponent(title)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data) && data.length ? data[0] : null;
+}
+
+// Crea una publicacion nueva en ML. Devuelve el item creado (incluye id y permalink).
+async function createItem(body) {
+    const token = await getValidToken();
+    if (!token) throw new Error('ML no conectado');
+    const res = await fetch(`${ML_API}/items`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Error ML API: ${res.status} - ${err}`);
+    }
+    return await res.json();
+}
+
+// Setea/crea la descripcion de un item (endpoint aparte de ML).
+async function setItemDescription(itemId, text) {
+    const token = await getValidToken();
+    if (!token) throw new Error('ML no conectado');
+    const res = await fetch(`${ML_API}/items/${itemId}/description`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plain_text: text }),
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Error al setear descripcion ML: ${res.status} - ${err}`);
+    }
+    return await res.json();
+}
+
 // Envia un mensaje post-venta al comprador (mensajeria interna de ML).
 // packId: para ordenes sin carrito, es igual al order_id.
 // Para insertar un link clickeable se usa <a href="url">texto</a> dentro del texto.
@@ -243,5 +294,8 @@ module.exports = {
     updateItem,
     getOrder,
     sendMessage,
+    predictCategory,
+    createItem,
+    setItemDescription,
     parseMLId,
 };

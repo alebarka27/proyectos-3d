@@ -17,6 +17,10 @@ const PORT = process.env.PORT || 3000;
 // mientras revalida en segundo plano.
 const CACHE_PUBLICO = 'public, s-maxage=120, stale-while-revalidate=600';
 
+// Archivos digitales mas pesados que esto se entregan redirigiendo directo a Drive
+// (mas rapido, no satura la funcion serverless). Mas chicos se sirven por stream.
+const DESCARGA_PROXY_MAX_MB = parseInt(process.env.DESCARGA_PROXY_MAX_MB) || 80;
+
 app.set('trust proxy', true);
 app.use(express.json());
 
@@ -312,6 +316,53 @@ app.post('/api/proyectos', async (req, res) => {
     }
 });
 
+// Duplica un proyecto existente (sin ml_id ni ventas) para cargar variantes rapido.
+app.post('/api/proyectos/:id/duplicar', async (req, res) => {
+    try {
+        const { rows: orig } = await sql`SELECT * FROM proyectos WHERE id = ${req.params.id}`;
+        if (!orig.length) return res.status(404).json({ error: 'No encontrado' });
+        const o = orig[0];
+        const id = Date.now().toString();
+        const fecha = new Date().toISOString().split('T')[0];
+        await sql`
+            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id, colores, colorfotos)
+            VALUES (${id}, ${(o.nombre || '') + ' (copia)'}, ${o.codigo || ''}, ${o.categoria || ''}, ${o.linkarchivo || ''},
+                    ${o.costo || 0}, ${o.precioventa || 0}, 0, ${o.fotos || ''}, ${o.estado || 'Planificado'}, ${fecha},
+                    false, ${o.cantidad || 0}, '', ${o.descripcion || ''}, false, ${o.es_digital || false}, ${o.drive_file_id || ''}, ${o.colores || ''}, ${o.colorfotos || ''})
+        `;
+        const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Carga masiva: crea varios proyectos de una (cada item: nombre, precioVenta, categoria, ...).
+app.post('/api/proyectos/bulk', async (req, res) => {
+    try {
+        const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+        if (!items.length) return res.status(400).json({ error: 'No se recibieron items' });
+        const fecha = new Date().toISOString().split('T')[0];
+        let creados = 0;
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i] || {};
+            if (!it.nombre) continue;
+            const id = (Date.now() + i).toString();
+            await sql`
+                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id)
+                VALUES (${id}, ${it.nombre}, ${it.codigo || ''}, ${it.categoria || ''}, '',
+                        ${parseFloat(it.costo) || 0}, ${parseFloat(it.precioVenta) || 0}, 0, ${it.fotos || ''},
+                        'Planificado', ${fecha}, false, ${parseInt(it.cantidad) || 0}, '', ${it.descripcion || ''}, false,
+                        ${!!it.esDigital}, ${it.driveFileId || ''})
+            `;
+            creados++;
+        }
+        res.json({ ok: true, creados });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
         const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
@@ -598,6 +649,57 @@ app.post('/api/proyectos/:id/ml-sync', async (req, res) => {
 // Eleva una URL de imagen de ML a su version original (-O) y fuerza https
 const mlHighRes = u => (u || '').replace(/^http:\/\//, 'https://').replace(/-[A-Z](\.(?:jpe?g|png|webp))$/i, '-O$1');
 
+// Crea una publicacion nueva en ML desde los datos del producto y guarda el ml_id.
+app.post('/api/proyectos/:id/ml-publish', async (req, res) => {
+    try {
+        const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${req.params.id}`;
+        if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+        const p = rows[0];
+        if (p.ml_id) return res.status(400).json({ error: 'Este producto ya está publicado en ML' });
+
+        const { categoryId, listingType, cantidad, pausar } = req.body || {};
+
+        // Categoria: override manual o prediccion automatica por titulo
+        let catId = categoryId;
+        if (!catId) {
+            const pred = await ml.predictCategory(p.nombre);
+            catId = pred && pred.category_id;
+        }
+        if (!catId) return res.status(400).json({ error: 'No se pudo predecir la categoría. Indicá una manualmente.' });
+
+        const fotos = (p.fotos || '').split(',').map(s => mlHighRes(s.trim())).filter(Boolean);
+        const qty = parseInt(cantidad) > 0 ? parseInt(cantidad) : (p.cantidad > 0 ? p.cantidad : 100);
+
+        const body = {
+            title: (p.nombre || '').slice(0, 60),
+            category_id: catId,
+            price: p.precioventa || 0,
+            currency_id: 'ARS',
+            available_quantity: qty,
+            buying_mode: 'buy_it_now',
+            condition: 'new',
+            listing_type_id: listingType || 'gold_special',
+            pictures: fotos.map(url => ({ source: url })),
+        };
+
+        const item = await ml.createItem(body);
+
+        // Por seguridad, dejar la publicacion pausada salvo que pidan publicarla viva
+        if (pausar !== false) {
+            try { await ml.updateItem(item.id, { status: 'paused' }); item.status = 'paused'; } catch (e) { console.warn('pausar ML:', e.message); }
+        }
+        if (p.descripcion) {
+            try { await ml.setItemDescription(item.id, p.descripcion); } catch (e) { console.warn('descripcion ML:', e.message); }
+        }
+
+        await sql`UPDATE proyectos SET ml_id = ${item.id} WHERE id = ${p.id}`;
+        res.json({ ok: true, ml_id: item.id, permalink: item.permalink, status: item.status });
+    } catch (err) {
+        // Propaga el error de ML (incluye que atributos faltan) para que el usuario lo vea
+        res.status(400).json({ error: err.message });
+    }
+});
+
 // Junta los colores de un item de ML (desde las variaciones con stock, o el
 // atributo COLOR) y el mapa color -> foto correspondiente de esa variacion.
 function extraerColoresYFotos(item) {
@@ -706,6 +808,15 @@ app.get('/api/descargar/:token', async (req, res) => {
         const fileId = pr[0].drive_file_id;
 
         const meta = await drive.getFileMeta(fileId).catch(() => ({}));
+
+        // Archivos pesados: redirigir directo a Drive (rapido, no satura el server).
+        // Requiere que ese archivo este compartido como "cualquiera con el enlace".
+        if (meta.size && Number(meta.size) > DESCARGA_PROXY_MAX_MB * 1024 * 1024) {
+            await sql`UPDATE descargas SET descargas_restantes = descargas_restantes - 1 WHERE token = ${token}`
+                .catch(e => console.error('No se pudo descontar descarga:', e.message));
+            return res.redirect(302, `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`);
+        }
+
         const fileRes = await drive.getFileResponse(fileId);
 
         const nombreBase = (pr[0].nombre || 'archivo').trim().replace(/[^\w\-]+/g, '_') || 'archivo';

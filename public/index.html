@@ -136,7 +136,46 @@
                 </div>
             </div>
 
+            <div id="mlPublishOverlay" class="overlay hidden">
+                <div class="modal">
+                    <h2>Publicar en Mercado Libre</h2>
+                    <p id="mlPublishProd" class="muted"></p>
+                    <label>Categoría <input type="text" id="mlPublishCat" placeholder="Dejar vacío = autodetectar (ej: MLA1234)"></label>
+                    <label>Tipo de publicación
+                        <select id="mlPublishTipo">
+                            <option value="gold_special">Clásica</option>
+                            <option value="gold_pro">Premium</option>
+                            <option value="free">Gratuita</option>
+                        </select>
+                    </label>
+                    <label>Cantidad (stock) <input type="number" id="mlPublishCant" value="100" min="1"></label>
+                    <label class="checkbox-label"><input type="checkbox" id="mlPublishPausar" checked> Publicar pausada para revisarla antes (recomendado)</label>
+                    <div id="mlPublishMsg" class="muted"></div>
+                    <div class="form-actions">
+                        <button class="btn-primary" id="btnMlPublishConfirm" onclick="confirmarPublicarML()">Publicar</button>
+                        <button class="btn-secondary" onclick="cerrarPublicarML()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="bulkOverlay" class="overlay hidden">
+                <div class="modal">
+                    <h2>Carga masiva de productos</h2>
+                    <p class="muted">Una línea por producto, con formato: <code>nombre ; precio ; categoría</code></p>
+                    <textarea id="bulkText" rows="8" style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);font-family:inherit;resize:vertical;" placeholder="Dragón articulado ; 1500 ; Juguetes&#10;Soporte celular ; 999 ; Accesorios"></textarea>
+                    <div id="bulkMsg" class="muted"></div>
+                    <div class="form-actions">
+                        <button class="btn-primary" onclick="confirmarCargaMasiva()">Crear productos</button>
+                        <button class="btn-secondary" onclick="cerrarCargaMasiva()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="vistaProyectos">
+                <div class="proy-toolbar">
+                    <button id="btnFiltroDigital" class="btn-sm" onclick="toggleSoloDigitales()">Solo digitales</button>
+                    <button class="btn-sm" onclick="abrirCargaMasiva()">Carga masiva</button>
+                </div>
                 <table id="tabla">
                     <thead>
                         <tr>
