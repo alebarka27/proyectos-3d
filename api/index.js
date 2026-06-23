@@ -886,7 +886,7 @@ app.post('/api/ml/webhook', async (req, res) => {
                             const packId = order.pack_id || orderId;
                             const buyerId = order.buyer?.id;
                             const sellerId = order.seller?.id || ourUserId;
-                            const texto = `¡Gracias por tu compra! Descargá tu archivo acá: <a href="${url}">Descargar archivo</a> El link queda disponible (hasta 10 descargas). ¡Guardá el archivo!`;
+                            const texto = `¡Hola! Somos Aurora3, ¡gracias por tu compra! Descargá tu archivo acá: <a href="${url}">Descargar archivo</a> El link queda disponible (hasta 10 descargas). ¡Guardá bien el archivo!`;
                             await ml.sendMessage(packId, sellerId, buyerId, texto);
                             console.log(`Entrega digital enviada: proyecto ${pId} -> orden ${orderId}`);
                         } catch (e) {
