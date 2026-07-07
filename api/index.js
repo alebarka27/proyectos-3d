@@ -30,7 +30,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const COOKIE_NAME = 'session';
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
-const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/icons.js', '/favicon.svg', '/api/login', '/api/logout', '/api/me', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop', '/producto.html', '/producto.js', '/faq.html', '/nosotros.html', '/api/destacados', '/api/buscar', '/api/producto']);
+const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/icons.js', '/favicon.svg', '/api/login', '/api/logout', '/api/me', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop', '/producto.html', '/producto.js', '/faq.html', '/nosotros.html', '/api/destacados', '/api/buscar', '/api/producto', '/robots.txt', '/sitemap.xml']);
 
 function sign(value) {
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
@@ -146,6 +146,106 @@ app.use('/api', (req, res, next) => {
 });
 
 const publicDir = path.join(__dirname, '..', 'public');
+
+/* ---- SEO server-side de la ficha de producto ----
+   Los crawlers de WhatsApp/Instagram/Google no ejecutan JS, asi que los meta
+   tags (titulo, descripcion, imagen) se inyectan aca antes de servir el HTML.
+   Tiene que registrarse ANTES de express.static para ganarle al archivo plano. */
+
+const escapeAttr = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const setMetaById = (html, id, value) =>
+    html.replace(new RegExp(`(<meta[^>]+id="${id}"[^>]*content=")[^"]*(")`), `$1${escapeAttr(value)}$2`);
+
+let productoHTMLCache = null;
+
+app.get('/producto.html', async (req, res, next) => {
+    try {
+        if (!productoHTMLCache) productoHTMLCache = fs.readFileSync(path.join(publicDir, 'producto.html'), 'utf-8');
+    } catch {
+        return next();
+    }
+    let html = productoHTMLCache;
+    const id = String(req.query.id || '');
+    if (id) {
+        try {
+            await ensureDB();
+            const { rows } = await sql`
+                SELECT nombre, categoria, fotos, precioventa, cantidad, descripcion, es_digital FROM proyectos
+                WHERE id = ${id} AND publicareshop = true
+            `;
+            if (rows.length) {
+                const p = rows[0];
+                const titulo = `${p.nombre} — 3D by Aurora`;
+                const desc = (p.descripcion || `${p.nombre} — pieza impresa en 3D. Comprá por WhatsApp o Mercado Libre.`)
+                    .replace(/\s+/g, ' ').trim().slice(0, 200);
+                const foto = mlHighRes((p.fotos || '').split(',')[0]?.trim() || '');
+                const url = `https://${req.headers.host}/producto.html?id=${encodeURIComponent(id)}`;
+                const disponible = p.es_digital || (parseInt(p.cantidad) || 0) > 0;
+
+                html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeAttr(titulo)}</title>`);
+                html = setMetaById(html, 'metaDescription', desc);
+                html = setMetaById(html, 'ogTitle', titulo);
+                html = setMetaById(html, 'ogDescription', desc);
+                if (foto) html = setMetaById(html, 'ogImage', foto);
+
+                const ld = {
+                    '@context': 'https://schema.org',
+                    '@type': 'Product',
+                    name: p.nombre,
+                    description: desc,
+                    image: foto ? [foto] : [],
+                    category: p.categoria || undefined,
+                    offers: {
+                        '@type': 'Offer',
+                        priceCurrency: 'ARS',
+                        price: parseFloat(p.precioventa) || 0,
+                        availability: disponible ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                        url,
+                    },
+                };
+                const extra = `    <link rel="canonical" href="${escapeAttr(url)}">\n` +
+                    `    <meta property="og:url" content="${escapeAttr(url)}">\n` +
+                    `    <script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>\n`;
+                html = html.replace('</head>', extra + '</head>');
+            }
+        } catch (e) {
+            console.warn('SEO producto:', e.message);
+        }
+    }
+    res.set('Cache-Control', CACHE_PUBLICO);
+    res.type('html').send(html);
+});
+
+/* ---- Indexacion en buscadores ---- */
+
+app.get('/robots.txt', (req, res) => {
+    const base = `https://${req.headers.host}`;
+    res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /login.html\n\nSitemap: ${base}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        await ensureDB();
+        const base = `https://${req.headers.host}`;
+        const { rows } = await sql`SELECT id, fecha FROM proyectos WHERE publicareshop = true`;
+        const urls = [
+            { loc: `${base}/` },
+            { loc: `${base}/eshop` },
+            { loc: `${base}/faq.html` },
+            { loc: `${base}/nosotros.html` },
+            ...rows.map(r => ({ loc: `${base}/producto.html?id=${encodeURIComponent(r.id)}`, lastmod: r.fecha })),
+        ];
+        const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+            urls.map(u => `  <url><loc>${u.loc.replace(/&/g, '&amp;')}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}</url>`).join('\n') +
+            '\n</urlset>';
+        res.set('Cache-Control', CACHE_PUBLICO);
+        res.type('application/xml').send(xml);
+    } catch (err) {
+        res.status(500).type('text/plain').send('Error generando sitemap');
+    }
+});
+
 if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
 }
@@ -305,7 +405,7 @@ app.post('/api/proyectos', async (req, res) => {
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
             INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id)
-            VALUES (${id}, ${nombre || ''}, ${codigo || ''}, ${categoria || ''}, ${linkArchivo || ''},
+            VALUES (${id}, ${(nombre || '').trim()}, ${(codigo || '').trim()}, ${(categoria || '').trim()}, ${linkArchivo || ''},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
                     ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${!!esDigital}, ${driveFileId || ''})
         `;
@@ -394,7 +494,7 @@ app.put('/api/proyectos/:id', async (req, res) => {
         const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
         const { rowCount } = await sql`
             UPDATE proyectos SET
-                nombre=${nombre || ''}, codigo=${codigo || ''}, categoria=${categoria || ''},
+                nombre=${(nombre || '').trim()}, codigo=${(codigo || '').trim()}, categoria=${(categoria || '').trim()},
                 linkarchivo=${linkArchivo || ''}, costo=${parseFloat(costo) || 0},
                 precioventa=${parseFloat(precioVenta) || 0}, vendidos=${parseInt(vendidos) || 0},
                 fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
@@ -457,8 +557,8 @@ app.get('/api/eshop', async (req, res) => {
     try {
         const { categoria } = req.query;
         const { rows } = categoria
-            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
-            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital, destacado FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital, destacado FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
         res.set('Cache-Control', CACHE_PUBLICO);
         res.json(rows);
     } catch (err) {
@@ -469,9 +569,9 @@ app.get('/api/eshop', async (req, res) => {
 app.get('/api/destacados', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos
+            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital FROM proyectos
             WHERE publicareshop = true
-            ORDER BY vendidos DESC, destacado DESC
+            ORDER BY destacado DESC, vendidos DESC
             LIMIT 8
         `;
         res.set('Cache-Control', CACHE_PUBLICO);
@@ -487,8 +587,8 @@ app.get('/api/buscar', async (req, res) => {
         if (!q || q.trim().length < 1) return res.json([]);
         const term = `%${q.trim()}%`;
         const { rows } = categoria
-            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
-            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -498,7 +598,7 @@ app.get('/api/buscar', async (req, res) => {
 app.get('/api/producto/:id', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores, colorfotos FROM proyectos
+            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores, colorfotos, es_digital FROM proyectos
             WHERE id = ${req.params.id} AND publicareshop = true
         `;
         if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
@@ -911,10 +1011,6 @@ app.post('/api/ml/webhook', async (req, res) => {
     }
 });
 
-app.get('/producto.html', (req, res) => {
-    res.sendFile(path.join(publicDir, 'producto.html'));
-});
-
 app.get('/faq.html', (req, res) => {
     res.sendFile(path.join(publicDir, 'faq.html'));
 });
@@ -946,6 +1042,7 @@ if (require.main === module) {
 }
 
 app._auth = { sign, verifyToken, parseCookies, isAuthenticated, COOKIE_NAME };
+app._seo = { escapeAttr, setMetaById };
 app._rateLimit = { loginAttempts, isRateLimited, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS };
 
 module.exports = app;

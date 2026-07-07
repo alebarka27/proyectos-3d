@@ -1287,3 +1287,13 @@ td a:hover { text-decoration: underline; }
 .badge-ok { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
 .badge-no { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); color: var(--danger); }
 .badge-listo { background: var(--success); color: #06210f; border-color: var(--success); font-weight: 600; }
+
+/* --- Tienda publica: selector de orden y badge de archivo digital --- */
+.eshop-orden { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.eshop-orden label { font-size: 13px; color: var(--text-dim); }
+.eshop-orden select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); font-size: 13px; font-family: inherit; cursor: pointer; }
+
+.product-img { position: relative; }
+.badge-stl-card { position: absolute; top: 10px; left: 10px; z-index: 1; padding: 4px 10px; border-radius: 999px; background: rgba(10, 10, 10, 0.72); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; backdrop-filter: blur(4px); }
+
+.badge-stl-ficha { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong, var(--border)); background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600; margin-left: 6px; }

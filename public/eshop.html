@@ -42,6 +42,16 @@
         </div>
 
         <div id="eshopCategorias" class="home-categorias" style="margin-top:16px;margin-bottom:0;"></div>
+
+        <div class="eshop-orden">
+            <label for="eshopOrden">Ordenar por</label>
+            <select id="eshopOrden" onchange="cambiarOrden(this.value)">
+                <option value="destacados">Destacados</option>
+                <option value="precio-asc">Menor precio</option>
+                <option value="precio-desc">Mayor precio</option>
+                <option value="nuevos">Más nuevos</option>
+            </select>
+        </div>
     </header>
 
     <main class="eshop-main">

@@ -28,7 +28,9 @@ async function cargarProducto() {
         document.title = `${p.nombre} — 3D by Aurora`;
 
         const fotos = fotosArray(p.fotos).map(mlHighResImage);
-        const sinStock = !p.cantidad || p.cantidad <= 0;
+        const esDigital = !!p.es_digital;
+        // Un archivo digital nunca se agota
+        const sinStock = !esDigital && (!p.cantidad || p.cantidad <= 0);
         const precio = parseFloat(p.precioventa) || 0;
         const mlUrl = urlML(p.ml_id);
         productoNombre = p.nombre;
@@ -60,7 +62,10 @@ async function cargarProducto() {
             <div class="producto-layout">
                 <div class="producto-gallery">${galeriaHTML}</div>
                 <div class="producto-info">
-                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                    ${p.categoria || esDigital ? `<div>
+                        ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                        ${esDigital ? '<span class="badge-stl-ficha">Archivo digital (STL)</span>' : ''}
+                    </div>` : ''}
                     <h1>${escapeHTML(p.nombre)}</h1>
                     ${precio ? `
                     <div class="producto-precio">
@@ -68,7 +73,9 @@ async function cargarProducto() {
                         <span class="monto">${formatearPrecio(precio)}</span>
                     </div>` : ''}
                     <div class="producto-stock ${sinStock ? 'stock-no' : 'stock-ok'}">
-                        ${sinStock ? `${icon('close')} Agotado` : `${icon('check')} ${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
+                        ${sinStock ? `${icon('close')} Agotado`
+                            : esDigital ? `${icon('check')} Entrega digital — recibís el archivo para descargar tras la compra`
+                            : `${icon('check')} ${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                     </div>
                     ${colores.length ? `
                     <div class="producto-colores">
@@ -163,6 +170,9 @@ function actualizarSEO(p, foto, precio, sinStock) {
     set('ogTitle', 'content', `${p.nombre} — 3D by Aurora`);
     set('ogDescription', 'content', desc);
     if (foto) set('ogImage', 'content', safeHref(foto));
+
+    // Si el servidor ya inyecto el JSON-LD (SEO server-side), no duplicarlo
+    if (document.querySelector('script[type="application/ld+json"]')) return;
 
     const ld = {
         '@context': 'https://schema.org',

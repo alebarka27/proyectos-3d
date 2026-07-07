@@ -5,6 +5,26 @@ let todosProductos = [];
 let categoriasEshop = [];
 let catSeleccionada = '';
 let busquedaTimeout = null;
+let ordenActual = 'destacados';
+
+// Ordena una copia de la lista segun el criterio elegido.
+function ordenarProductos(arr) {
+    const lista = arr.slice();
+    const precio = p => parseFloat(p.precioventa) || 0;
+    switch (ordenActual) {
+        case 'precio-asc': lista.sort((a, b) => (precio(a) || Infinity) - (precio(b) || Infinity)); break;
+        case 'precio-desc': lista.sort((a, b) => precio(b) - precio(a)); break;
+        case 'nuevos': lista.sort((a, b) => (parseInt(b.id) || 0) - (parseInt(a.id) || 0)); break;
+        default: // destacados primero, despues por nombre
+            lista.sort((a, b) => (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0) || (a.nombre || '').localeCompare(b.nombre || ''));
+    }
+    return lista;
+}
+
+function cambiarOrden(v) {
+    ordenActual = v;
+    filtrarYMostrar();
+}
 
 function skeletonCards(n) {
     return Array(n).fill(`
@@ -104,16 +124,18 @@ function mostrarProductos(productos, q) {
         return;
     }
 
-    grid.innerHTML = productos.map(renderProducto).join('');
+    grid.innerHTML = ordenarProductos(productos).map(renderProducto).join('');
 }
 
-function renderProducto(p) {
+function renderProducto(p, i) {
     const fotoRaw = (p.fotos || '').split(',')[0]?.trim();
     const foto = mlGridImage(fotoRaw);
     const fotoOk = foto && /^https?:\/\//i.test(foto);
+    const eager = i < 4; // las primeras imagenes cargan sin lazy (mejora el LCP)
     const img = fotoOk
-        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="lazy" decoding="async" onerror="imgFallback(this)">`
+        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="${eager ? 'eager' : 'lazy'}" ${eager ? 'fetchpriority="high"' : ''} decoding="async" onerror="imgFallback(this)">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
+    const badgeDigital = p.es_digital ? '<span class="badge-stl-card">Archivo digital</span>' : '';
     const cant = parseInt(p.cantidad) || 0;
     const sinStock = cant <= 0;
     const precio = parseFloat(p.precioventa) || 0;
@@ -122,7 +144,7 @@ function renderProducto(p) {
     return `
         <article class="product-card">
             <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
-                <div class="product-img">${img}</div>
+                <div class="product-img">${badgeDigital}${img}</div>
                 <div class="product-body">
                     ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
                     <h2 class="product-title">${escapeHTML(p.nombre)}</h2>
