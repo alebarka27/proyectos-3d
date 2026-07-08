@@ -1,0 +1,630 @@
+/* ============================================================
+   Tema "Vice" — estética inspirada en la página de GTA VI.
+   Se carga DESPUÉS de style.css y SOLO en las páginas públicas
+   (eshop, producto, faq, nosotros). El panel admin no lo usa.
+   ============================================================ */
+
+:root {
+    /* Paleta Vice City: atardecer rosa/naranja sobre noche violeta */
+    --vice-pink: #ff2d7c;
+    --vice-magenta: #ff4fd8;
+    --vice-orange: #ff9e3d;
+    --vice-purple: #7b3df0;
+    --vice-grad: linear-gradient(100deg, var(--vice-magenta) 0%, var(--vice-pink) 45%, var(--vice-orange) 100%);
+
+    /* Override de las variables base de style.css */
+    --bg: #0d0618;
+    --surface: #171029;
+    --surface-2: #221636;
+    --border: rgba(244, 213, 255, 0.10);
+    --border-strong: rgba(255, 79, 163, 0.55);
+    --text: #fbf6ff;
+    --text-dim: #bfa9d6;
+    --text-faint: #83709e;
+    --accent: #ff2d7c;
+    --accent-hover: #ff4f93;
+    --accent-text: #ffffff;
+    --info: #6cc7ff;
+    --hairline: rgba(255, 79, 163, 0.14);
+    --shadow: 0 2px 10px rgba(8, 2, 20, 0.5), 0 24px 60px rgba(8, 2, 20, 0.55);
+}
+
+/* --- Escenario: cielo nocturno con resplandor de atardecer --- */
+
+body {
+    background:
+        radial-gradient(ellipse 90% 55% at 50% -12%, rgba(255, 45, 124, 0.30) 0%, rgba(255, 158, 61, 0.10) 42%, transparent 70%),
+        radial-gradient(ellipse 70% 50% at 88% 108%, rgba(123, 61, 240, 0.28) 0%, transparent 62%),
+        radial-gradient(ellipse 55% 42% at 5% 92%, rgba(255, 79, 216, 0.13) 0%, transparent 60%),
+        var(--bg);
+    background-attachment: fixed;
+}
+
+/* Grano de película sobre toda la página */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+}
+
+::selection { background: var(--vice-pink); color: #fff; }
+
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #3a2359; }
+::-webkit-scrollbar-thumb:hover { background: #57337f; }
+
+.loading-spinner::before { border-color: rgba(255, 45, 124, 0.2); border-top-color: var(--vice-pink); }
+
+/* --- Nav pública: barra de vidrio flotante --- */
+
+.public-nav {
+    position: sticky;
+    top: 12px;
+    z-index: 900;
+    background: rgba(16, 8, 30, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 10px 18px;
+}
+.public-nav-brand {
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: 21px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+.brand-dot {
+    background: var(--vice-grad);
+    box-shadow: 0 0 10px rgba(255, 45, 124, 0.8), 0 0 22px rgba(255, 158, 61, 0.35);
+}
+.public-nav-links a { border-radius: 999px; }
+.public-nav-links a:hover {
+    color: #fff;
+    background: rgba(255, 45, 124, 0.14);
+}
+
+/* --- Tipografía display: títulos estilo póster --- */
+
+.eshop-header h1,
+.faq-container h1,
+.nosotros-container h1,
+.producto-info h1,
+.producto-no-encontrado h2 {
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    background: var(--vice-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 26px rgba(255, 45, 124, 0.3));
+}
+.eshop-header h1 { font-size: clamp(46px, 7.5vw, 80px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 8px; }
+.faq-container h1,
+.nosotros-container h1 { font-size: clamp(42px, 6vw, 62px); line-height: 0.98; letter-spacing: 2px; }
+.producto-info h1 { font-size: clamp(36px, 5vw, 52px); line-height: 0.98; letter-spacing: 1.5px; }
+
+.home-hero-eyebrow, .page-eyebrow { color: var(--vice-orange); }
+.home-hero-eyebrow::before, .page-eyebrow::before { height: 2px; background: var(--vice-grad); }
+
+/* --- Header del eshop (reemplaza los estilos inline que tenía el HTML) --- */
+
+.eshop-header { text-align: left; max-width: 1200px; margin: 0 auto 24px; }
+.eshop-header .home-hero-eyebrow { margin-bottom: 12px; }
+.eshop-header .eshop-sub { margin-bottom: 20px; font-size: 15px; }
+.eshop-header .search-bar { max-width: 640px; }
+#eshopCategorias { margin: 18px 0 0; }
+
+/* --- Chips de categorías: neón --- */
+
+.home-cat-btn {
+    border-color: rgba(255, 79, 163, 0.28);
+    background: rgba(255, 45, 124, 0.05);
+}
+.home-cat-btn:hover, .home-cat-btn:focus-visible {
+    border-color: var(--vice-pink);
+    color: #fff;
+    background: rgba(255, 45, 124, 0.15);
+    box-shadow: 0 0 14px rgba(255, 45, 124, 0.3);
+}
+.home-cat-btn-active { box-shadow: 0 0 14px rgba(255, 45, 124, 0.35); }
+
+/* --- Buscador --- */
+
+.search-bar {
+    background: rgba(23, 16, 41, 0.8);
+    border-radius: 14px;
+}
+.search-bar:focus-within {
+    border-color: var(--vice-pink);
+    box-shadow: 0 0 0 4px rgba(255, 45, 124, 0.14), 0 0 26px rgba(255, 45, 124, 0.18);
+}
+.search-bar button, .search-bar button:hover {
+    background: var(--vice-grad);
+    color: #fff;
+    border-radius: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.search-bar button:hover {
+    filter: brightness(1.12);
+    box-shadow: 0 0 18px rgba(255, 45, 124, 0.45);
+}
+
+.eshop-orden select { border-radius: 999px; }
+.eshop-orden select:focus { outline: none; border-color: var(--vice-pink); }
+
+/* --- Cards de producto --- */
+
+.product-card {
+    background: linear-gradient(180deg, rgba(30, 18, 52, 0.92), rgba(19, 11, 35, 0.94));
+    border-color: rgba(244, 213, 255, 0.08);
+    border-radius: 18px;
+}
+.product-card:hover {
+    border-color: rgba(255, 45, 124, 0.55);
+    box-shadow:
+        0 0 0 1px rgba(255, 45, 124, 0.35),
+        0 12px 32px rgba(8, 2, 20, 0.6),
+        0 0 44px rgba(255, 45, 124, 0.16);
+    transform: translateY(-5px);
+}
+.product-img { background: rgba(12, 6, 24, 0.6); }
+
+.skeleton-card { background: rgba(23, 16, 41, 0.7); border-radius: 18px; }
+.skeleton-img, .skeleton-line { background: rgba(123, 61, 240, 0.16); }
+
+/* Precios con degradado de atardecer */
+.precio-monto, .producto-precio .monto {
+    background: var(--vice-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+.precio-simbolo, .producto-precio .simbolo { color: var(--vice-orange); }
+
+.cat-badge {
+    background: rgba(123, 61, 240, 0.16);
+    border-color: rgba(123, 61, 240, 0.4);
+    color: #cdb6ff;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-size: 10.5px;
+    font-weight: 600;
+}
+
+.badge-stl-card { background: var(--vice-grad); color: #fff; }
+.badge-stl-ficha {
+    background: rgba(255, 45, 124, 0.12);
+    border-color: rgba(255, 45, 124, 0.4);
+    color: #ffb3d1;
+}
+
+/* Botón de Mercado Libre en amarillo (marca ML + neón) */
+.btn-ml, .producto-cta-ml { background: #ffe600; color: #1a1200; }
+.btn-ml:hover, .producto-cta-ml:hover {
+    background: #fff04d;
+    box-shadow: 0 0 18px rgba(255, 230, 0, 0.35);
+}
+
+.btn-whatsapp:hover, .producto-cta-whatsapp:hover {
+    box-shadow: 0 0 20px rgba(37, 211, 102, 0.4);
+}
+
+/* --- Ficha de producto --- */
+
+.producto-back:hover { color: var(--vice-pink); }
+.producto-gallery-main {
+    background: rgba(15, 8, 29, 0.7);
+    box-shadow: var(--shadow);
+}
+.producto-gallery-thumbs img.active {
+    border-color: var(--vice-pink);
+    box-shadow: 0 0 10px rgba(255, 45, 124, 0.4);
+}
+.swatch-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--vice-pink); }
+
+.producto-similares { border-top-color: rgba(255, 45, 124, 0.18); }
+.producto-similares h2 {
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: 26px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* --- FAQ --- */
+
+.faq-item { background: rgba(23, 16, 41, 0.7); border-radius: 14px; }
+.faq-item:hover { border-color: rgba(255, 45, 124, 0.4); }
+.faq-question { background: transparent; }
+.faq-question:hover { background: rgba(255, 45, 124, 0.06); }
+.faq-question::after { color: var(--vice-pink); }
+.faq-answer { background: transparent; }
+
+/* --- Nosotros --- */
+
+.nosotros-card { background: rgba(23, 16, 41, 0.72); border-radius: 18px; }
+.nosotros-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: 21px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+}
+.nosotros-card h2::before {
+    content: "";
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--vice-grad);
+}
+.feature-list li::before { border-color: var(--vice-pink); }
+
+/* --- Home pública: hero key-art --- */
+
+.home-body { padding: 16px 24px 60px; }
+.home-main { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+
+.vice-hero {
+    position: relative;
+    max-width: 1200px;
+    margin: 20px auto 44px;
+    overflow: visible;
+}
+/* Sol synthwave: disco degradado con cortes horizontales, detrás del contenido */
+.vice-sun {
+    position: absolute;
+    top: -40px;
+    right: 4%;
+    width: min(380px, 42vw);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--vice-orange) 0%, var(--vice-pink) 55%, var(--vice-magenta) 100%);
+    -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 62%, #000 62.5%, transparent 63%, transparent 68%, #000 68.5%, #000 74%, transparent 74.5%, transparent 79%, #000 79.5%, #000 86%, transparent 86.5%, transparent 90%, #000 90.5%);
+    mask-image: repeating-linear-gradient(180deg, #000 0 62%, #000 62.5%, transparent 63%, transparent 68%, #000 68.5%, #000 74%, transparent 74.5%, transparent 79%, #000 79.5%, #000 86%, transparent 86.5%, transparent 90%, #000 90.5%);
+    opacity: 0.35;
+    filter: blur(0.5px) drop-shadow(0 0 60px rgba(255, 45, 124, 0.5));
+    pointer-events: none;
+    z-index: 0;
+}
+.vice-hero-inner {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: center;
+}
+.vice-hero-text h1 {
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: clamp(52px, 8vw, 96px);
+    line-height: 0.92;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-wrap: balance;
+    margin-bottom: 16px;
+    background: var(--vice-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 30px rgba(255, 45, 124, 0.35));
+}
+.vice-hero-text p {
+    color: var(--text-dim);
+    font-size: clamp(15px, 2vw, 17px);
+    line-height: 1.6;
+    max-width: 480px;
+    margin-bottom: 24px;
+    text-wrap: pretty;
+}
+.vice-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.btn-vice {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--vice-grad);
+    color: #fff;
+    padding: 13px 30px;
+    border-radius: 12px;
+    font-size: 15px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    text-decoration: none;
+    transition: filter .15s, box-shadow .15s, transform .1s;
+}
+.btn-vice:hover { filter: brightness(1.12); box-shadow: 0 0 26px rgba(255, 45, 124, 0.45); }
+.btn-vice:active { transform: scale(.98); }
+.btn-vice-ghost {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid rgba(255, 79, 163, 0.4);
+    padding: 12px 26px;
+    border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    text-decoration: none;
+    transition: all .15s;
+}
+.btn-vice-ghost:hover {
+    border-color: var(--vice-pink);
+    background: rgba(255, 45, 124, 0.1);
+    box-shadow: 0 0 18px rgba(255, 45, 124, 0.25);
+}
+.vice-hero-search { max-width: 480px; }
+
+/* Collage de fotos reales con marcos neón, apenas rotadas */
+.vice-hero-collage {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 10px;
+}
+.vice-polaroid {
+    display: block;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 79, 163, 0.35);
+    box-shadow: 0 14px 40px rgba(8, 2, 20, 0.6), 0 0 30px rgba(255, 45, 124, 0.14);
+    transform: rotate(-3deg);
+    transition: transform .25s, box-shadow .25s;
+    background: rgba(15, 8, 29, 0.7);
+}
+.vice-polaroid:nth-child(2) { transform: rotate(2.5deg) translateY(22px); }
+.vice-polaroid:nth-child(3) { transform: rotate(-1.5deg) translateY(-6px); grid-column: 1 / -1; justify-self: center; width: 62%; }
+.vice-polaroid:hover { transform: rotate(0) scale(1.04); box-shadow: 0 18px 50px rgba(8, 2, 20, 0.7), 0 0 40px rgba(255, 45, 124, 0.3); z-index: 2; }
+.vice-polaroid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+
+.home-section-title { font-size: 22px; }
+.home-section-title::before { background: var(--vice-grad); }
+.home-section-title span:first-of-type {
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-weight: 400;
+    font-size: 26px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.home-section-title .home-section-link:hover { color: var(--vice-pink); }
+
+/* Pasos de compra */
+.vice-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+.vice-step {
+    background: rgba(23, 16, 41, 0.72);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+}
+.vice-step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--vice-grad);
+    color: #fff;
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-size: 19px;
+    margin-bottom: 12px;
+}
+.vice-step h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.vice-step p { color: var(--text-dim); font-size: 13.5px; line-height: 1.55; }
+
+@media (max-width: 860px) {
+    .vice-hero-inner { grid-template-columns: 1fr; }
+    .vice-hero-collage { max-width: 420px; }
+    .vice-sun { top: -20px; right: -6%; opacity: 0.25; }
+}
+
+/* --- Controles del eshop: orden + filtro de precio --- */
+
+.eshop-controles { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 14px; }
+.eshop-controles .eshop-orden { margin-top: 0; }
+.eshop-precio-filtro { display: flex; align-items: center; gap: 8px; }
+.eshop-precio-filtro label { font-size: 13px; color: var(--text-dim); }
+.eshop-precio-filtro span { color: var(--text-faint); }
+.eshop-precio-filtro input {
+    width: 92px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+}
+.eshop-precio-filtro input:focus { outline: none; border-color: var(--vice-pink); }
+.eshop-precio-filtro input::placeholder { color: var(--text-faint); }
+
+/* --- Carrito de pedido --- */
+
+.btn-add-carrito {
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px;
+    border: 1px solid rgba(255, 79, 163, 0.35);
+    border-radius: 6px;
+    background: rgba(255, 45, 124, 0.06);
+    color: #ffb3d1;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+}
+.btn-add-carrito:hover {
+    border-color: var(--vice-pink);
+    background: rgba(255, 45, 124, 0.14);
+    color: #fff;
+    box-shadow: 0 0 14px rgba(255, 45, 124, 0.25);
+}
+.btn-add-carrito.btn-add-ok {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(74, 222, 128, 0.08);
+    box-shadow: none;
+}
+.producto-cta-carrito { padding: 13px; border-radius: var(--radius-md); font-size: 14px; margin-top: 0; }
+
+.carrito-float {
+    position: fixed;
+    bottom: 92px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border: 1px solid rgba(255, 79, 163, 0.5);
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(35, 20, 60, 0.95), rgba(20, 11, 38, 0.95));
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(255, 45, 124, 0.35);
+    z-index: 999;
+    transition: transform .2s, box-shadow .2s;
+}
+.carrito-float:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(255, 45, 124, 0.5); }
+.carrito-float .icon-lg { width: 24px; height: 24px; }
+.carrito-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--vice-grad);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.carrito-panel {
+    position: fixed;
+    bottom: 160px;
+    right: 24px;
+    width: min(360px, calc(100vw - 32px));
+    max-height: min(480px, calc(100dvh - 200px));
+    overflow-y: auto;
+    background: rgba(20, 11, 38, 0.97);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 79, 163, 0.35);
+    border-radius: 18px;
+    padding: 18px;
+    z-index: 1100;
+    box-shadow: var(--shadow), 0 0 40px rgba(255, 45, 124, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.carrito-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Bebas Neue', 'Outfit', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.carrito-cerrar {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    border-radius: 6px;
+}
+.carrito-cerrar:hover { color: #fff; background: rgba(255, 45, 124, 0.14); }
+.carrito-items { display: flex; flex-direction: column; gap: 10px; }
+.carrito-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+.carrito-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.carrito-item-nombre { font-size: 13.5px; font-weight: 500; }
+.carrito-item-precio { font-size: 12.5px; color: var(--vice-orange); font-weight: 600; }
+.carrito-item-cant { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.carrito-item-cant button {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 79, 163, 0.35);
+    background: rgba(255, 45, 124, 0.06);
+    color: var(--text);
+    font-size: 15px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.carrito-item-cant button:hover { border-color: var(--vice-pink); background: rgba(255, 45, 124, 0.16); }
+.carrito-item-cant span { min-width: 18px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.carrito-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 13.5px;
+    color: var(--text-dim);
+}
+.carrito-total strong {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: var(--vice-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+.carrito-enviar { padding: 13px; font-size: 14px; border-radius: 10px; }
+.carrito-vaciar {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 2px;
+}
+.carrito-vaciar:hover { color: var(--danger); text-decoration: underline; }
+
+@media (max-width: 768px) {
+    .home-body { padding: 12px 16px 40px; }
+    .carrito-float { width: 48px; height: 48px; bottom: 76px; right: 16px; }
+    .carrito-panel { bottom: 134px; right: 16px; }
+}
+
+/* --- Footer --- */
+
+.eshop-footer {
+    border-top: 1px solid transparent;
+    border-image: linear-gradient(90deg, transparent, rgba(255, 45, 124, 0.5), transparent) 1;
+}
+.social-link:hover {
+    color: #fff;
+    border-color: var(--vice-pink);
+    box-shadow: 0 0 16px rgba(255, 45, 124, 0.25);
+}

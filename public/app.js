@@ -368,9 +368,25 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         esDigital: document.getElementById('esDigitalCheck').checked,
         driveFileId: document.getElementById('driveFileId').value.trim(),
     };
+    // Aviso de precio inconsistente (se puede guardar igual, pero a propósito)
+    const costoNum = parseFloat(data.costo) || 0;
+    const ventaNum = parseFloat(data.precioVenta) || 0;
+    if (ventaNum > 0 && costoNum > ventaNum) {
+        const seguir = await showConfirm(
+            `El precio de venta ($${ventaNum}) es menor que el costo ($${costoNum}): venderías a pérdida. ¿Guardar igual?`,
+            { title: 'Precio inconsistente', confirmLabel: 'Guardar igual' }
+        );
+        if (!seguir) return;
+    }
+
     const url = id ? `${API_PROY}/${id}` : API_PROY;
     const method = id ? 'PUT' : 'POST';
-    await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    const res = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'No se pudo guardar el proyecto', 'error');
+        return;
+    }
     document.getElementById('formOverlay').classList.add('hidden');
     if (!id) catActual = data.categoria;
     cargar();

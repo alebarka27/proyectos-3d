@@ -96,6 +96,7 @@ async function cargarProducto() {
                             ${sinStock ? 'Agotado' : 'Comprar por WhatsApp'}
                         </a>
                         ${mlUrl ? `<a class="producto-cta-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} Compralo también por Mercado Libre</a>` : ''}
+                        ${sinStock ? '' : `<button type="button" class="btn-add-carrito producto-cta-carrito" data-id="${escapeHTML(p.id)}" data-nombre="${escapeHTML(p.nombre)}" data-precio="${precio}">＋ Agregar al pedido y seguir mirando</button>`}
                     </div>
                     ${p.descripcion ? `
                     <div class="producto-descripcion">

@@ -10,7 +10,7 @@ document.getElementById('loginForm').onsubmit = async (e) => {
             body: JSON.stringify({ password })
         });
         if (res.ok) {
-            window.location.href = '/';
+            window.location.href = '/admin';
         } else {
             errorEl.textContent = 'Contraseña incorrecta';
             errorEl.classList.remove('hidden');

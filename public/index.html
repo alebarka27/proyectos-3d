@@ -3,344 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catálogo 3D by Aurora — Impresión 3D</title>
-    <meta name="description" content="Productos impresos en 3D. Comprá por WhatsApp o Mercado Libre. Diseños únicos, materiales de calidad.">
-    <meta property="og:title" content="Catálogo 3D by Aurora">
-    <meta property="og:description" content="Productos impresos en 3D. Comprá por WhatsApp.">
+    <meta name="theme-color" content="#0d0618">
+    <title>3D by Aurora — Impresión 3D | Piezas únicas hechas capa por capa</title>
+    <meta name="description" content="Tienda de impresión 3D en Buenos Aires. Decoración, juguetes, accesorios y diseños a medida. Comprá por WhatsApp o Mercado Libre.">
+    <meta property="og:title" content="3D by Aurora — Impresión 3D">
+    <meta property="og:description" content="Piezas impresas en 3D, únicas y hechas bajo pedido. Comprá por WhatsApp o Mercado Libre.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://proyectos-3d.vercel.app/">
+    <meta property="og:image" content="/favicon.svg">
+    <meta name="twitter:card" content="summary">
+    <link rel="canonical" href="https://proyectos-3d.vercel.app/">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="gta.css">
 </head>
-<body>
-    <a href="#mainContent" class="skip-link">Saltar al contenido</a>
-    <div class="layout" id="app">
+<body class="home-body eshop-body">
+    <nav class="public-nav">
+        <a class="public-nav-brand" href="/">
+            <span class="brand-dot"></span>
+            <span>3D by Aurora</span>
+        </a>
+        <div class="public-nav-links">
+            <a href="/eshop">Tienda</a>
+            <a href="/faq.html">FAQ</a>
+            <a href="/nosotros.html">Nosotros</a>
+        </div>
+    </nav>
 
-        <aside class="sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-dot"></span>
-                <span>3D by Aurora</span>
+    <header class="vice-hero">
+        <div class="vice-sun" aria-hidden="true"></div>
+        <div class="vice-hero-inner">
+            <div class="vice-hero-text">
+                <span class="page-eyebrow">Impresión 3D — Buenos Aires</span>
+                <h1>Diseños que cobran forma</h1>
+                <p>Piezas únicas impresas capa por capa con materiales de primera. Elegí del catálogo o encargá tu diseño a medida — coordinamos todo por WhatsApp.</p>
+                <div class="vice-hero-actions">
+                    <a class="btn-vice" href="/eshop">Ver catálogo</a>
+                    <a class="btn-vice-ghost" data-wa="Hola! Quiero encargar un diseño a medida." target="_blank" rel="noopener noreferrer">Encargá tu diseño</a>
+                </div>
+                <form class="search-bar vice-hero-search" action="/eshop" method="get">
+                    <input type="search" name="q" placeholder="¿Qué estás buscando?" autocomplete="off" enterkeyhint="search" aria-label="Buscar productos">
+                    <button type="submit">Buscar</button>
+                </form>
             </div>
-            <div class="sidebar-auth">
-                <div class="sidebar-header">
-                    <h2 class="sidebar-title">Carpetas</h2>
-                    <button class="btn-sidebar" onclick="mostrarGestionCarpetas()" title="Administrar carpetas">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="5" x2="17" y2="5"/><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><line x1="3" y1="10" x2="17" y2="10"/><circle cx="7" cy="10" r="1.6" fill="currentColor" stroke="none"/><line x1="3" y1="15" x2="17" y2="15"/><circle cx="13" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>
-                    </button>
-                </div>
-                <div class="carpeta carpeta-activa" data-cat="" onclick="filtrar('')">
-                    <span class="carpeta-icon"><svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5a1 1 0 0 1 1-1h3.6l1.4 1.6h7a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1V5.5z"/></svg></span> Todos <span class="carpeta-count" id="count-todas">0</span>
-                </div>
-                <div id="listaCarpetas"></div>
+            <div class="vice-hero-collage hidden" id="heroCollage" aria-hidden="true"></div>
+        </div>
+    </header>
+
+    <main class="home-main">
+        <div id="homeCategorias" class="home-categorias"></div>
+
+        <section>
+            <div class="home-section-title">
+                <span>Más vendidos</span>
+                <a class="home-section-link" href="/eshop">Ver todo el catálogo →</a>
             </div>
-            <div class="sidebar-footer">
-                <button id="btnIrTiendaSidebar" class="btn-ir-tienda-sidebar" onclick="cambiarVista('tienda')">
-                    <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h10l.9 9.5a1 1 0 0 1-1 1.1H5.1a1 1 0 0 1-1-1.1L5 7z"/><path d="M7.5 7V5.5a2.5 2.5 0 0 1 5 0V7"/></svg>
-                    Ir a la Tienda
-                </button>
-                <div class="sidebar-auth">
-                    <div class="sidebar-ml-status" id="mlStatus">
-                        <span class="ml-dot ml-disconnected"></span>
-                        <span id="mlLabel">ML desconectado</span>
-                        <button id="btnConectarML" class="btn-ml-connect" onclick="conectarML()">Conectar</button>
-                        <button id="btnImportarML" class="btn-ml-connect hidden" onclick="importarML()">Importar publicaciones</button>
-                        <button id="btnDesconectarML" class="btn-ml-connect hidden" onclick="desconectarML()">Desconectar</button>
-                    </div>
-                </div>
-                <button id="btnLogin" class="btn-logout" onclick="window.location.href='/login.html'">Iniciar sesión</button>
-                <button id="btnLogout" class="btn-logout hidden" onclick="logout()">Cerrar sesión</button>
+            <p id="homeEstado" class="eshop-estado">Cargando productos...</p>
+            <div id="homeGrid" class="eshop-grid hidden"></div>
+        </section>
+
+        <section class="vice-steps" aria-label="Cómo comprar">
+            <div class="vice-step">
+                <span class="vice-step-num">1</span>
+                <h3>Elegí tu pieza</h3>
+                <p>Recorré el catálogo o pedí un diseño a medida.</p>
             </div>
-        </aside>
-
-        <main class="main-content" id="mainContent">
-            <div class="top-bar">
-                <div class="tabs">
-                    <button class="tab tab-activo" onclick="cambiarVista('tienda')">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h10l.9 9.5a1 1 0 0 1-1 1.1H5.1a1 1 0 0 1-1-1.1L5 7z"/><path d="M7.5 7V5.5a2.5 2.5 0 0 1 5 0V7"/></svg>
-                        Tienda
-                    </button>
-                    <button class="tab tab-auth" onclick="cambiarVista('proyectos')">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="12" height="14" rx="1.5"/><path d="M7.5 3.5h5v2h-5z"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>
-                        Proyectos
-                    </button>
-                    <button class="tab tab-auth" onclick="cambiarVista('ventas')">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 8.5h15"/><circle cx="14" cy="11.8" r="1" fill="currentColor" stroke="none"/></svg>
-                        Ventas
-                    </button>
-                    <button class="tab tab-auth" onclick="cambiarVista('calculadora')">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="11" height="15" rx="1.5"/><rect x="6.5" y="4.5" width="7" height="3" rx="0.5"/><circle cx="7" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="10" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="13" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="7" cy="14.3" r="0.9" fill="currentColor" stroke="none"/><circle cx="10" cy="14.3" r="0.9" fill="currentColor" stroke="none"/><circle cx="13" cy="14.3" r="0.9" fill="currentColor" stroke="none"/></svg>
-                        Calculadora
-                    </button>
-                </div>
-                <button id="btnNuevo" class="btn-primary hidden">
-                    <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                    Nuevo Proyecto
-                </button>
+            <div class="vice-step">
+                <span class="vice-step-num">2</span>
+                <h3>Escribinos</h3>
+                <p>Armá tu pedido y envialo por WhatsApp, o comprá por Mercado Libre.</p>
             </div>
-
-            <div id="formOverlay" class="overlay hidden">
-                <div class="modal">
-                    <h2 id="formTitle">Nuevo Proyecto</h2>
-                    <form id="projectForm">
-                        <input type="hidden" id="editId">
-                        <label>Nombre <input type="text" id="nombre" required></label>
-                        <label>Código <input type="text" id="codigo" required></label>
-                        <label>Categoría
-                            <input type="text" id="categoria" list="catList" placeholder="Ej: Prototipos, Ventas, Regalos...">
-                            <datalist id="catList"></datalist>
-                        </label>
-                        <label>Link al archivo <input type="url" id="linkArchivo" placeholder="https://..."></label>
-                        <label>Costo ($) <input type="number" id="costo" step="0.01" placeholder="Costo de producción"></label>
-                        <label>Precio venta ($) <input type="number" id="precioVenta" step="0.01" placeholder="Precio al que se vende"></label>
-                        <label>Vendidos <input type="number" id="vendidos" step="1" placeholder="Cantidad vendida"></label>
-                        <label>Stock en tienda <input type="number" id="cantidad" step="1" placeholder="0 = sin stock"></label>
-                        <label>ID Mercado Libre <input type="text" id="mlId" placeholder="Ej: MLA1234567890 (opcional)"></label>
-                        <label class="checkbox-label"><input type="checkbox" id="destacadoCheck"> Destacar en la página principal (Más vendidos)</label>
-                        <label class="checkbox-label"><input type="checkbox" id="esDigitalCheck"> Producto digital (archivo para descargar)</label>
-                        <label>ID o link del archivo en Google Drive <input type="text" id="driveFileId" placeholder="Pegá el ID o el link del archivo en tu Drive"></label>
-                        <div id="downloadCopyRow" class="hidden">
-                            <label>Mensaje + link para enviarle al comprador
-                                <textarea id="downloadMsg" rows="9" readonly style="width:100%;padding:10px 12px;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text);font-family:inherit;resize:vertical;"></textarea>
-                            </label>
-                            <button type="button" class="btn-primary" onclick="copiarMensajeDescarga()">Copiar mensaje + link</button>
-                            <p class="muted" style="margin-top:6px;">Pegalo en el chat de Mercado Libre cuando te compren.</p>
-                        </div>
-                        <label>Fotos (URLs, separadas por comas) <input type="text" id="fotos" placeholder="https://..., https://..."></label>
-                        <label>Descripción <textarea id="descripcion" rows="3" style="width:100%;padding:10px 12px;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);font-family:inherit;resize:vertical;" placeholder="Materiales, medidas, colores disponibles..."></textarea></label>
-                        <label>Estado
-                            <select id="estado">
-                                <option>Planificado</option>
-                                <option>Imprimiendo</option>
-                                <option>Terminado</option>
-                            </select>
-                        </label>
-                        <label class="checkbox-label"><input type="checkbox" id="publicarEshop"> Publicar en el eshop (catálogo público)</label>
-                        <div class="form-actions">
-                            <button type="submit" id="btnGuardar" class="btn-primary">Guardar</button>
-                            <button type="button" id="btnCancelar" class="btn-secondary">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
+            <div class="vice-step">
+                <span class="vice-step-num">3</span>
+                <h3>La imprimimos</h3>
+                <p>Cada pieza se imprime bajo pedido, en 1 a 5 días hábiles.</p>
             </div>
-
-            <div id="catOverlay" class="overlay hidden">
-                <div class="modal modal-cat">
-                    <h2>Administrar Carpetas</h2>
-                    <div class="cat-crear">
-                        <input type="text" id="nuevaCat" placeholder="Nombre de la carpeta">
-                        <button class="btn-primary" onclick="crearCarpeta()">
-                            <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                            Crear
-                        </button>
-                    </div>
-                    <div id="listaCatsAdmin"></div>
-                    <div class="form-actions">
-                        <button class="btn-secondary" onclick="cerrarGestionCarpetas()">Cerrar</button>
-                    </div>
-                </div>
+            <div class="vice-step">
+                <span class="vice-step-num">4</span>
+                <h3>La recibís</h3>
+                <p>Entrega en CABA o envío a todo el país.</p>
             </div>
+        </section>
+    </main>
 
-            <div id="mlPublishOverlay" class="overlay hidden">
-                <div class="modal">
-                    <h2>Publicar en Mercado Libre</h2>
-                    <p id="mlPublishProd" class="muted"></p>
-                    <label>Categoría <input type="text" id="mlPublishCat" placeholder="Dejar vacío = autodetectar (ej: MLA1234)"></label>
-                    <label>Tipo de publicación
-                        <select id="mlPublishTipo">
-                            <option value="gold_special">Clásica</option>
-                            <option value="gold_pro">Premium</option>
-                            <option value="free">Gratuita</option>
-                        </select>
-                    </label>
-                    <label>Cantidad (stock) <input type="number" id="mlPublishCant" value="100" min="1"></label>
-                    <label class="checkbox-label"><input type="checkbox" id="mlPublishPausar" checked> Publicar pausada para revisarla antes (recomendado)</label>
-                    <div id="mlPublishMsg" class="muted"></div>
-                    <div class="form-actions">
-                        <button class="btn-primary" id="btnMlPublishConfirm" onclick="confirmarPublicarML()">Publicar</button>
-                        <button class="btn-secondary" onclick="cerrarPublicarML()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="bulkOverlay" class="overlay hidden">
-                <div class="modal">
-                    <h2>Carga masiva de productos</h2>
-                    <p class="muted">Una línea por producto, con formato: <code>nombre ; precio ; categoría</code></p>
-                    <textarea id="bulkText" rows="8" style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);font-family:inherit;resize:vertical;" placeholder="Dragón articulado ; 1500 ; Juguetes&#10;Soporte celular ; 999 ; Accesorios"></textarea>
-                    <div id="bulkMsg" class="muted"></div>
-                    <div class="form-actions">
-                        <button class="btn-primary" onclick="confirmarCargaMasiva()">Crear productos</button>
-                        <button class="btn-secondary" onclick="cerrarCargaMasiva()">Cancelar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="vistaProyectos">
-                <div class="proy-toolbar">
-                    <button id="btnFiltroDigital" class="btn-sm" onclick="toggleSoloDigitales()">Solo digitales</button>
-                    <button class="btn-sm" onclick="abrirCargaMasiva()">Carga masiva</button>
-                </div>
-                <table id="tabla">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Código</th>
-                            <th>Categoría</th>
-                            <th>Link Archivo</th>
-                            <th>Costo</th>
-                            <th>Precio Vta</th>
-                            <th>Vend.</th>
-                            <th>Ganancia</th>
-                            <th>Estado</th>
-                            <th>ML</th>
-                            <th>Eshop</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody"></tbody>
-                </table>
-            </div>
-
-            <div id="vistaVentas" class="hidden">
-                <div class="top-bar">
-                    <h2 class="view-heading">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 8.5h15"/><circle cx="14" cy="11.8" r="1" fill="currentColor" stroke="none"/></svg>
-                        Ventas y Ganancias
-                    </h2>
-                    <button class="btn-primary" onclick="mostrarFormVenta()">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                        Registrar Venta
-                    </button>
-                </div>
-                <div class="stats">
-                    <div class="stat-card">
-                        <span class="stat-label">Total Vendido</span>
-                        <span class="stat-value" id="stat-vendidos">0</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-label">Ingresos</span>
-                        <span class="stat-value" id="stat-ingresos">$0</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-label">Costos</span>
-                        <span class="stat-value" id="stat-costos">$0</span>
-                    </div>
-                    <div class="stat-card stat-destacado">
-                        <span class="stat-label">Ganancia Total</span>
-                        <span class="stat-value" id="stat-ganancia">$0</span>
-                    </div>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Proyecto</th>
-                            <th>Cant.</th>
-                            <th>Precio Venta</th>
-                            <th>Costo</th>
-                            <th>Ganancia</th>
-                            <th>Fecha</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbodyVentas"></tbody>
-                    <tfoot id="tfootVentas"></tfoot>
-                </table>
-            </div>
-
-            <div id="vistaCalculadora" class="hidden">
-                <h2 class="view-heading">
-                    <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="11" height="15" rx="1.5"/><rect x="6.5" y="4.5" width="7" height="3" rx="0.5"/><circle cx="7" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="10" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="13" cy="11" r="0.9" fill="currentColor" stroke="none"/><circle cx="7" cy="14.3" r="0.9" fill="currentColor" stroke="none"/><circle cx="10" cy="14.3" r="0.9" fill="currentColor" stroke="none"/><circle cx="13" cy="14.3" r="0.9" fill="currentColor" stroke="none"/></svg>
-                    Calculadora de Costos de Impresión
-                </h2>
-                <div class="calc-grid">
-                    <div class="calc-form">
-                        <label>Marca / Material <input type="text" id="calcMarca" placeholder="Ej: PLA Bambu Lab" oninput="calcularPrecio()"></label>
-                        <label>Costo del Material ($/kg) <input type="number" id="calcCostoMaterial" step="0.01" value="18500" oninput="calcularPrecio()"></label>
-                        <label>Gramos usados <input type="number" id="calcGramos" step="0.1" oninput="calcularPrecio()"></label>
-                        <label>Horas de impresión <input type="number" id="calcHoras" step="0.1" oninput="calcularPrecio()"></label>
-                        <label>Precio kWh ($) <input type="number" id="calcKwh" step="0.01" value="160" oninput="calcularPrecio()"></label>
-                        <label>Desgaste por hora ($) <input type="number" id="calcDesgaste" step="0.01" value="300" oninput="calcularPrecio()"></label>
-                    </div>
-                    <div class="calc-resultado">
-                        <div class="stats">
-                            <div class="stat-card">
-                                <span class="stat-label">Costo Energía</span>
-                                <span class="stat-value" id="calc-energia">$0</span>
-                            </div>
-                            <div class="stat-card">
-                                <span class="stat-label">Costo Material</span>
-                                <span class="stat-value" id="calc-material">$0</span>
-                            </div>
-                            <div class="stat-card">
-                                <span class="stat-label">Desgaste Máquina</span>
-                                <span class="stat-value" id="calc-desgaste">$0</span>
-                            </div>
-                            <div class="stat-card stat-destacado">
-                                <span class="stat-label">Total</span>
-                                <span class="stat-value" id="calc-total">$0</span>
-                            </div>
-                        </div>
-                        <button class="btn-primary" onclick="usarComoCosto()">Usar como costo del proyecto</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="vistaTienda" class="hidden">
-                <div class="home-hero" id="tiendaHero">
-                    <div class="home-hero-bg"></div>
-                    <div class="home-hero-content">
-                        <span class="home-hero-eyebrow">3D by Aurora</span>
-                        <h1>Diseños que cobran forma, capa por capa</h1>
-                        <p>Piezas impresas en 3D con materiales de calidad. Elegí del catálogo o encargá tu diseño a medida — te lo armamos y coordinamos todo por WhatsApp.</p>
-                        <div class="home-hero-actions">
-                            <button class="btn-primary" onclick="document.getElementById('tiendaSearch').focus()">Explorar catálogo</button>
-                            <a class="btn-secondary" href="/nosotros.html">Conocé el taller</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="search-bar" id="searchBar" style="margin-bottom:24px;">
-                    <input type="text" id="tiendaSearch" placeholder="Buscá productos..." oninput="manejarBusqueda()" autocomplete="off">
-                    <button onclick="manejarBusqueda()">Buscar</button>
-                </div>
-
-                <div id="tiendaHome">
-                    <div id="tiendaCategorias" class="home-categorias"></div>
-
-                    <div class="home-section-title">
-                        <span>Más vendidos</span>
-                    </div>
-                </div>
-                <p id="tiendaEstado" class="eshop-estado">Cargando tienda...</p>
-                <div id="tiendaGrid" class="eshop-grid"></div>
-            </div>
-
-            <div id="ventaOverlay" class="overlay hidden">
-                <div class="modal modal-venta">
-                    <h2>Registrar Venta</h2>
-                    <form id="ventaForm">
-                        <label>Proyecto
-                            <select id="ventaProyecto" onchange="cargarCostoVenta()">
-                                <option value="">-- Seleccionar --</option>
-                            </select>
-                        </label>
-                        <label>Cantidad <input type="number" id="ventaCantidad" value="1" min="1" step="1" oninput="calcGananciaVenta()"></label>
-                        <label>Precio venta ($) <input type="number" id="ventaPrecio" step="0.01" oninput="calcGananciaVenta()"></label>
-                        <label>Costo ($) <input type="number" id="ventaCosto" step="0.01" oninput="calcGananciaVenta()"></label>
-                        <div class="ganancia-preview">Ganancia: <strong id="ventaGananciaPreview">$0</strong></div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary">Guardar Venta</button>
-                            <button type="button" class="btn-secondary" onclick="cerrarFormVenta()">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </main>
-
-    </div>
+    <footer class="eshop-footer">
+        <p class="eshop-footer-text">Seguinos en nuestras redes</p>
+        <div class="eshop-social">
+            <a class="social-link" href="https://www.instagram.com/3dbyaurora/" target="_blank" rel="noopener noreferrer" aria-label="Instagram de 3D by Aurora">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                <span>Instagram</span>
+            </a>
+            <a class="social-link" href="https://www.tiktok.com/@3dbyaurora" target="_blank" rel="noopener noreferrer" aria-label="TikTok de 3D by Aurora">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.32 1.39V7.32s-1.88.09-3.26-1.5z"/></svg>
+                <span>TikTok</span>
+            </a>
+        </div>
+    </footer>
 
     <a class="whatsapp-float" href="https://wa.me/5491127192970" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
         <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -348,7 +109,7 @@
 
     <script src="utils.js"></script>
     <script src="icons.js"></script>
-    <script src="ui.js"></script>
-    <script src="app.js"></script>
+    <script src="carrito.js"></script>
+    <script src="home.js"></script>
 </body>
 </html>

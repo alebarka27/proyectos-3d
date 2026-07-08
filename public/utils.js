@@ -97,6 +97,64 @@ function coloresChips(coloresStr, max = 6) {
     return `<div class="color-swatches" title="Colores: ${escapeHTML(cols.join(', '))}">${swatches}${extra}</div>`;
 }
 
+/* --- Card de producto para grillas publicas (home + eshop) --- */
+
+function skeletonCards(n) {
+    return Array(n).fill(`
+        <div class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-body">
+                <div class="skeleton-line w-40"></div>
+                <div class="skeleton-line w-60"></div>
+                <div class="skeleton-line h-lg"></div>
+            </div>
+        </div>`).join('');
+}
+
+function renderProductoCard(p, i) {
+    const fotoRaw = (p.fotos || '').split(',')[0]?.trim();
+    const foto = mlGridImage(fotoRaw);
+    const fotoOk = foto && /^https?:\/\//i.test(foto);
+    const eager = i < 4; // las primeras imagenes cargan sin lazy (mejora el LCP)
+    const img = fotoOk
+        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="${eager ? 'eager' : 'lazy'}" ${eager ? 'fetchpriority="high"' : ''} decoding="async" onerror="imgFallback(this)">`
+        : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
+    const badgeDigital = p.es_digital ? '<span class="badge-stl-card">Archivo digital</span>' : '';
+    const cant = parseInt(p.cantidad) || 0;
+    const sinStock = !p.es_digital && cant <= 0;
+    const precio = parseFloat(p.precioventa) || 0;
+    const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
+    const mlUrl = urlML(p.ml_id);
+    return `
+        <article class="product-card">
+            <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
+                <div class="product-img">${badgeDigital}${img}</div>
+                <div class="product-body">
+                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                    <h2 class="product-title">${escapeHTML(p.nombre)}</h2>
+                    ${precio ? `
+                    <div class="precio-section">
+                        <span class="precio-simbolo">$</span>
+                        <span class="precio-monto">${formatearPrecio(precio)}</span>
+                    </div>` : ''}
+                    ${coloresChips(p.colores)}
+                    <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
+                        ${p.es_digital ? 'Entrega digital' : sinStock ? 'Sin stock' : `${cant} disponible${cant !== 1 ? 's' : ''}`}
+                    </div>
+                </div>
+            </a>
+            <div class="product-body" style="padding-top:0;">
+                <div class="product-botones">
+                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="${waUrl}" target="_blank" rel="noopener noreferrer"`}>
+                        ${icon('chat')} WhatsApp
+                    </a>
+                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
+                </div>
+                ${sinStock ? '' : `<button type="button" class="btn-add-carrito" data-id="${escapeHTML(p.id)}" data-nombre="${escapeHTML(p.nombre)}" data-precio="${precio}">＋ Agregar al pedido</button>`}
+            </div>
+        </article>`;
+}
+
 // Reemplaza una <img> que no carga (URL caida, foto borrada) por un placeholder.
 function imgFallback(el) {
     el.onerror = null;

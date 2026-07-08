@@ -1,11 +1,16 @@
-/* Helpers compartidos (formatearPrecio, urlML, mlHighResImage, escapeHTML,
-   safeHref, whatsappHref) viven en utils.js, cargado antes que este archivo. */
+/* Helpers compartidos (formatearPrecio, urlML, escapeHTML, safeHref,
+   whatsappHref, renderProductoCard, skeletonCards) viven en utils.js. */
 
 let todosProductos = [];
 let categoriasEshop = [];
 let catSeleccionada = '';
 let busquedaTimeout = null;
 let ordenActual = 'destacados';
+
+// Lazy load: se renderiza de a lotes y un sentinel al final del grid pide más
+const LOTE = 24;
+let listaVisible = [];
+let renderizados = 0;
 
 // Ordena una copia de la lista segun el criterio elegido.
 function ordenarProductos(arr) {
@@ -26,18 +31,6 @@ function cambiarOrden(v) {
     filtrarYMostrar();
 }
 
-function skeletonCards(n) {
-    return Array(n).fill(`
-        <div class="skeleton-card">
-            <div class="skeleton-img"></div>
-            <div class="skeleton-body">
-                <div class="skeleton-line w-40"></div>
-                <div class="skeleton-line w-60"></div>
-                <div class="skeleton-line h-lg"></div>
-            </div>
-        </div>`).join('');
-}
-
 async function cargarEshop() {
     const estado = document.getElementById('eshopEstado');
     const grid = document.getElementById('eshopGrid');
@@ -51,8 +44,16 @@ async function cargarEshop() {
         todosProductos = await res.json();
 
         categoriasEshop = [...new Set(todosProductos.map(p => p.categoria).filter(Boolean))].sort();
+
+        // La home linkea con /eshop?q=...&categoria=... — se aplican al entrar
+        const params = new URLSearchParams(window.location.search);
+        const q = (params.get('q') || '').trim();
+        const cat = (params.get('categoria') || '').trim();
+        if (q) document.getElementById('eshopSearch').value = q;
+        if (cat && categoriasEshop.includes(cat)) catSeleccionada = cat;
+
         renderCategorias();
-        mostrarProductos(todosProductos);
+        filtrarYMostrar();
     } catch {
         grid.innerHTML = `<div class="empty-state">
             ${icon('warning', 'icon-lg')}
@@ -92,6 +93,8 @@ function buscarEshop() {
 
 function filtrarYMostrar() {
     const q = (document.getElementById('eshopSearch').value || '').trim().toLowerCase();
+    const min = parseFloat(document.getElementById('precioMin').value);
+    const max = parseFloat(document.getElementById('precioMax').value);
 
     let resultado = todosProductos;
 
@@ -106,6 +109,15 @@ function filtrarYMostrar() {
         );
     }
 
+    if (!isNaN(min) || !isNaN(max)) {
+        resultado = resultado.filter(p => {
+            const precio = parseFloat(p.precioventa) || 0;
+            if (!isNaN(min) && precio < min) return false;
+            if (!isNaN(max) && precio > max) return false;
+            return true;
+        });
+    }
+
     mostrarProductos(resultado, q);
 }
 
@@ -115,59 +127,33 @@ function mostrarProductos(productos, q) {
     if (!productos.length) {
         const msg = q
             ? `No encontramos coincidencias para "<strong>${escapeHTML(q)}</strong>".`
-            : 'No hay productos en esta categoría.';
+            : 'No hay productos con esos filtros.';
         grid.innerHTML = `<div class="empty-state">
             ${icon('inbox', 'icon-lg')}
             <p class="empty-state-title">Sin resultados</p>
             <p class="empty-state-text">${msg}</p>
         </div>`;
+        listaVisible = [];
         return;
     }
 
-    grid.innerHTML = ordenarProductos(productos).map(renderProducto).join('');
+    listaVisible = ordenarProductos(productos);
+    renderizados = Math.min(LOTE, listaVisible.length);
+    grid.innerHTML = listaVisible.slice(0, renderizados).map(renderProductoCard).join('');
 }
 
-function renderProducto(p, i) {
-    const fotoRaw = (p.fotos || '').split(',')[0]?.trim();
-    const foto = mlGridImage(fotoRaw);
-    const fotoOk = foto && /^https?:\/\//i.test(foto);
-    const eager = i < 4; // las primeras imagenes cargan sin lazy (mejora el LCP)
-    const img = fotoOk
-        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="${eager ? 'eager' : 'lazy'}" ${eager ? 'fetchpriority="high"' : ''} decoding="async" onerror="imgFallback(this)">`
-        : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
-    const badgeDigital = p.es_digital ? '<span class="badge-stl-card">Archivo digital</span>' : '';
-    const cant = parseInt(p.cantidad) || 0;
-    const sinStock = cant <= 0;
-    const precio = parseFloat(p.precioventa) || 0;
-    const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
-    const mlUrl = urlML(p.ml_id);
-    return `
-        <article class="product-card">
-            <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
-                <div class="product-img">${badgeDigital}${img}</div>
-                <div class="product-body">
-                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
-                    <h2 class="product-title">${escapeHTML(p.nombre)}</h2>
-                    ${precio ? `
-                    <div class="precio-section">
-                        <span class="precio-simbolo">$</span>
-                        <span class="precio-monto">${formatearPrecio(precio)}</span>
-                    </div>` : ''}
-                    ${coloresChips(p.colores)}
-                    <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                        ${sinStock ? 'Sin stock' : `${cant} disponible${cant !== 1 ? 's' : ''}`}
-                    </div>
-                </div>
-            </a>
-            <div class="product-body" style="padding-top:0;">
-                <div class="product-botones">
-                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="${waUrl}" target="_blank" rel="noopener noreferrer"`}>
-                        ${icon('chat')} WhatsApp
-                    </a>
-                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
-                </div>
-            </div>
-        </article>`;
+function renderMasProductos() {
+    if (renderizados >= listaVisible.length) return;
+    const grid = document.getElementById('eshopGrid');
+    const siguiente = Math.min(renderizados + LOTE, listaVisible.length);
+    grid.insertAdjacentHTML('beforeend',
+        listaVisible.slice(renderizados, siguiente).map((p, i) => renderProductoCard(p, renderizados + i)).join(''));
+    renderizados = siguiente;
 }
+
+// Cuando el sentinel (despues del grid) entra en pantalla, se carga otro lote
+new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) renderMasProductos();
+}, { rootMargin: '600px' }).observe(document.getElementById('eshopSentinel'));
 
 cargarEshop();

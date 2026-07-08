@@ -30,7 +30,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const COOKIE_NAME = 'session';
 const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7 dias
-const PUBLIC_PATHS = new Set(['/', '/login.html', '/login.js', '/style.css', '/app.js', '/utils.js', '/icons.js', '/favicon.svg', '/api/login', '/api/logout', '/api/me', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop', '/producto.html', '/producto.js', '/faq.html', '/nosotros.html', '/api/destacados', '/api/buscar', '/api/producto', '/robots.txt', '/sitemap.xml']);
+const PUBLIC_PATHS = new Set(['/', '/index.html', '/login.html', '/login.js', '/style.css', '/gta.css', '/utils.js', '/icons.js', '/home.js', '/carrito.js', '/favicon.svg', '/api/login', '/api/logout', '/api/me', '/api/ml/status', '/api/ml/webhook', '/eshop', '/eshop.js', '/api/eshop', '/producto.html', '/producto.js', '/faq.html', '/nosotros.html', '/api/destacados', '/api/buscar', '/api/producto', '/robots.txt', '/sitemap.xml']);
 
 function sign(value) {
     const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('hex');
@@ -117,7 +117,7 @@ app.get('/api/me', (req, res) => {
 
 app.use((req, res, next) => {
     const authed = isAuthenticated(req);
-    if (req.path === '/login.html' && authed) return res.redirect('/');
+    if (req.path === '/login.html' && authed) return res.redirect('/admin');
     if (PUBLIC_PATHS.has(req.path)) return next();
     if (req.path.startsWith('/api/producto/')) return next();
     if (req.path.startsWith('/api/descargar/')) return next();
@@ -140,6 +140,25 @@ app.use('/api', (req, res, next) => {
             }
         } catch {
             return res.status(403).json({ error: 'Origen no permitido' });
+        }
+    }
+    next();
+});
+
+/* ---- Validación de montos en proyectos (POST/PUT) ----
+   Costo y precio de venta tienen que ser números >= 0 si vienen con valor.
+   Corre antes del gate de DB para rechazar datos rotos sin tocar la base. */
+
+function montoInvalido(v) {
+    if (v === undefined || v === null || v === '') return false; // vacío = 0, permitido
+    const n = parseFloat(v);
+    return isNaN(n) || n < 0;
+}
+
+app.use('/api/proyectos', (req, res, next) => {
+    if ((req.method === 'POST' || req.method === 'PUT') && req.body) {
+        if (montoInvalido(req.body.costo) || montoInvalido(req.body.precioVenta)) {
+            return res.status(400).json({ error: 'El costo y el precio de venta deben ser números mayores o iguales a 0' });
         }
     }
     next();
@@ -220,7 +239,7 @@ app.get('/producto.html', async (req, res, next) => {
 
 app.get('/robots.txt', (req, res) => {
     const base = `https://${req.headers.host}`;
-    res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /login.html\n\nSitemap: ${base}/sitemap.xml\n`);
+    res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /login.html\nDisallow: /admin\n\nSitemap: ${base}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (req, res) => {
@@ -252,6 +271,12 @@ if (fs.existsSync(publicDir)) {
 
 app.get('/eshop', (req, res) => {
     res.sendFile(path.join(publicDir, 'eshop.html'));
+});
+
+// Panel de administración (protegido: /admin no está en PUBLIC_PATHS,
+// el middleware de auth redirige a /login.html si no hay sesión)
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(publicDir, 'admin.html'));
 });
 
 let dbReady = false;

@@ -28,11 +28,54 @@ test('GET /api/proyectos sin sesion devuelve 401', async () => {
     assert.strictEqual(res.status, 401);
 });
 
-test('GET / sin sesion sirve index.html (ahora publica)', async () => {
+test('GET / sin sesion sirve la home publica', async () => {
     const res = await fetch(`${baseUrl}/`);
     assert.strictEqual(res.status, 200);
     const text = await res.text();
-    assert.match(text, /<title>Catálogo 3D by Aurora/);
+    assert.match(text, /<title>3D by Aurora/);
+});
+
+test('GET /admin sin sesion redirige al login', async () => {
+    const res = await fetch(`${baseUrl}/admin`, { redirect: 'manual' });
+    assert.strictEqual(res.status, 302);
+    assert.match(res.headers.get('location') || '', /login\.html/);
+});
+
+test('GET /admin con sesion sirve el panel', async () => {
+    const loginRes = await login('203.0.113.6');
+    const cookie = loginRes.headers.get('set-cookie').split(';')[0];
+    const res = await fetch(`${baseUrl}/admin`, { headers: { Cookie: cookie } });
+    assert.strictEqual(res.status, 200);
+    assert.match(await res.text(), /<title>Panel — 3D by Aurora/);
+});
+
+test('GET /gta.css y /carrito.js son publicos (los usa la tienda)', async () => {
+    for (const p of ['/gta.css', '/carrito.js', '/home.js']) {
+        const res = await fetch(`${baseUrl}${p}`, { redirect: 'manual' });
+        assert.strictEqual(res.status, 200, `${p} deberia ser publico`);
+    }
+});
+
+test('POST /api/proyectos con precio negativo devuelve 400', async () => {
+    const loginRes = await login('203.0.113.7');
+    const cookie = loginRes.headers.get('set-cookie').split(';')[0];
+    const res = await fetch(`${baseUrl}/api/proyectos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ nombre: 'Test', precioVenta: -100 }),
+    });
+    assert.strictEqual(res.status, 400);
+});
+
+test('POST /api/proyectos con costo no numerico devuelve 400', async () => {
+    const loginRes = await login('203.0.113.8');
+    const cookie = loginRes.headers.get('set-cookie').split(';')[0];
+    const res = await fetch(`${baseUrl}/api/proyectos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ nombre: 'Test', costo: 'abc' }),
+    });
+    assert.strictEqual(res.status, 400);
 });
 
 test('GET /login.html es publico', async () => {

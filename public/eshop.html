@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0a0a0a">
+    <meta name="theme-color" content="#0d0618">
     <title>Tienda — 3D by Aurora</title>
     <meta name="description" content="Catálogo de productos impresos en 3D. Comprá por WhatsApp o Mercado Libre.">
     <meta property="og:title" content="Tienda — 3D by Aurora">
@@ -16,8 +16,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="gta.css">
 </head>
 <body class="eshop-body">
     <nav class="public-nav">
@@ -31,32 +32,41 @@
         </div>
     </nav>
 
-    <header class="eshop-header" style="text-align:left;max-width:1200px;margin:0 auto 24px;">
-        <span class="home-hero-eyebrow" style="margin-bottom:10px;">Catálogo</span>
-        <h1 style="font-size:clamp(24px,4vw,32px);font-weight:700;letter-spacing:-.8px;margin-bottom:6px;">Todas nuestras piezas</h1>
-        <p class="eshop-sub" style="margin-bottom:18px;">Buscá lo que necesitás y coordinamos por WhatsApp, o compralo directo por Mercado Libre.</p>
+    <header class="eshop-header">
+        <span class="home-hero-eyebrow">Catálogo</span>
+        <h1>Todas nuestras piezas</h1>
+        <p class="eshop-sub">Buscá lo que necesitás y coordinamos por WhatsApp, o compralo directo por Mercado Libre.</p>
 
-        <div class="search-bar" style="max-width:100%;">
+        <div class="search-bar">
             <input type="search" id="eshopSearch" placeholder="Buscá por nombre o categoría..." oninput="buscarEshop()" onkeydown="if(event.key==='Enter')buscarEshop()" autocomplete="off" enterkeyhint="search" aria-label="Buscar productos">
             <button type="button" onclick="buscarEshop()">Buscar</button>
         </div>
 
-        <div id="eshopCategorias" class="home-categorias" style="margin-top:16px;margin-bottom:0;"></div>
+        <div id="eshopCategorias" class="home-categorias"></div>
 
-        <div class="eshop-orden">
-            <label for="eshopOrden">Ordenar por</label>
-            <select id="eshopOrden" onchange="cambiarOrden(this.value)">
-                <option value="destacados">Destacados</option>
-                <option value="precio-asc">Menor precio</option>
-                <option value="precio-desc">Mayor precio</option>
-                <option value="nuevos">Más nuevos</option>
-            </select>
+        <div class="eshop-controles">
+            <div class="eshop-orden">
+                <label for="eshopOrden">Ordenar por</label>
+                <select id="eshopOrden" onchange="cambiarOrden(this.value)">
+                    <option value="destacados">Destacados</option>
+                    <option value="precio-asc">Menor precio</option>
+                    <option value="precio-desc">Mayor precio</option>
+                    <option value="nuevos">Más nuevos</option>
+                </select>
+            </div>
+            <div class="eshop-precio-filtro">
+                <label for="precioMin">Precio</label>
+                <input type="number" id="precioMin" placeholder="mín" min="0" inputmode="numeric" oninput="buscarEshop()" aria-label="Precio mínimo">
+                <span aria-hidden="true">–</span>
+                <input type="number" id="precioMax" placeholder="máx" min="0" inputmode="numeric" oninput="buscarEshop()" aria-label="Precio máximo">
+            </div>
         </div>
     </header>
 
     <main class="eshop-main">
         <p id="eshopEstado" class="eshop-estado">Cargando catálogo...</p>
         <div id="eshopGrid" class="eshop-grid hidden"></div>
+        <div id="eshopSentinel" aria-hidden="true"></div>
     </main>
 
     <footer class="eshop-footer">
@@ -79,6 +89,7 @@
 
     <script src="utils.js"></script>
     <script src="icons.js"></script>
+    <script src="carrito.js"></script>
     <script src="eshop.js"></script>
 </body>
 </html>
