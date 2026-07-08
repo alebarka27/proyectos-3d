@@ -11,6 +11,8 @@
     --vice-orange: #ff9e3d;
     --vice-purple: #7b3df0;
     --vice-grad: linear-gradient(100deg, var(--vice-magenta) 0%, var(--vice-pink) 45%, var(--vice-orange) 100%);
+    /* Versión pastel del degradado, para acentos que no tienen que gritar (precios) */
+    --vice-grad-soft: linear-gradient(100deg, #e895dc 0%, #f48ba8 45%, #ffc990 100%);
 
     /* Override de las variables base de style.css */
     --bg: #0d0618;
@@ -49,15 +51,15 @@ body::after {
     z-index: -1;
     pointer-events: none;
     background:
-        radial-gradient(circle 440px at 22% 32%, rgba(255, 45, 124, 0.09) 0%, transparent 70%),
-        radial-gradient(circle 540px at 80% 72%, rgba(123, 61, 240, 0.11) 0%, transparent 70%),
-        radial-gradient(circle 320px at 60% 12%, rgba(255, 158, 61, 0.06) 0%, transparent 70%);
-    animation: vice-drift 30s ease-in-out infinite alternate;
+        radial-gradient(circle 440px at 22% 32%, rgba(255, 45, 124, 0.14) 0%, transparent 70%),
+        radial-gradient(circle 540px at 80% 72%, rgba(123, 61, 240, 0.17) 0%, transparent 70%),
+        radial-gradient(circle 340px at 60% 12%, rgba(255, 158, 61, 0.10) 0%, transparent 70%);
+    animation: vice-drift 16s ease-in-out infinite alternate;
     will-change: transform;
 }
 @keyframes vice-drift {
-    from { transform: translate3d(-2.5%, -1.5%, 0) scale(1); }
-    to { transform: translate3d(2.5%, 2%, 0) scale(1.08); }
+    from { transform: translate3d(-5%, -3.5%, 0) scale(1); }
+    to { transform: translate3d(5%, 4%, 0) scale(1.12); }
 }
 @media (prefers-reduced-motion: reduce) {
     body::after { animation: none; }
@@ -206,8 +208,14 @@ body::before {
 .skeleton-card { background: rgba(23, 16, 41, 0.7); border-radius: 18px; }
 .skeleton-img, .skeleton-line { background: rgba(123, 61, 240, 0.16); }
 
-/* Precios a tono con el texto de la página (sin degradado, más tranquilo) */
-.precio-monto, .producto-precio .monto { color: var(--text); }
+/* Precios con el degradado pastel: se nota el arcoíris pero sin estridencia */
+.precio-monto, .producto-precio .monto {
+    background: var(--vice-grad-soft);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
 .precio-simbolo, .producto-precio .simbolo { color: var(--text-dim); }
 
 .cat-badge {
@@ -228,16 +236,41 @@ body::before {
     color: #ffb3d1;
 }
 
-/* Botón de Mercado Libre en amarillo (marca ML + neón) */
-.btn-ml, .producto-cta-ml { background: #ffe600; color: #1a1200; }
+/* Botones de WhatsApp y ML integrados a la paleta: fondo oscuro translúcido,
+   el color de marca queda solo como acento en el borde, texto e ícono */
+.btn-whatsapp, .producto-cta-whatsapp, .carrito-enviar {
+    background: rgba(37, 211, 102, 0.12);
+    border: 1px solid rgba(37, 211, 102, 0.32);
+    color: #8ce8b2;
+}
+.btn-whatsapp:hover, .producto-cta-whatsapp:hover, .carrito-enviar:hover {
+    background: rgba(37, 211, 102, 0.2);
+    border-color: rgba(37, 211, 102, 0.55);
+    color: #c3f7d8;
+    box-shadow: 0 0 14px rgba(37, 211, 102, 0.15);
+}
+.producto-cta-whatsapp svg { fill: currentColor; }
+
+.btn-ml, .producto-cta-ml {
+    background: rgba(255, 230, 0, 0.09);
+    border: 1px solid rgba(255, 230, 0, 0.26);
+    color: #f5e18d;
+}
 .btn-ml:hover, .producto-cta-ml:hover {
-    background: #fff04d;
-    box-shadow: 0 0 14px rgba(255, 230, 0, 0.2);
+    background: rgba(255, 230, 0, 0.16);
+    border-color: rgba(255, 230, 0, 0.45);
+    color: #fbedb5;
+    box-shadow: 0 0 12px rgba(255, 230, 0, 0.12);
 }
 
-.btn-whatsapp:hover, .producto-cta-whatsapp:hover {
-    box-shadow: 0 0 16px rgba(37, 211, 102, 0.25);
+/* Botón flotante de WhatsApp: mismo vidrio oscuro que el del carrito */
+.whatsapp-float {
+    background: linear-gradient(180deg, rgba(35, 20, 60, 0.95), rgba(20, 11, 38, 0.95));
+    border: 1px solid rgba(37, 211, 102, 0.45);
+    box-shadow: 0 4px 18px rgba(37, 211, 102, 0.22);
 }
+.whatsapp-float svg { fill: #4ade80; }
+.whatsapp-float:hover { box-shadow: 0 6px 24px rgba(37, 211, 102, 0.35); }
 
 /* --- Ficha de producto --- */
 
@@ -610,7 +643,11 @@ body::before {
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.5px;
-    color: var(--text);
+    background: var(--vice-grad-soft);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
 }
 .carrito-enviar { padding: 13px; font-size: 14px; border-radius: 10px; }
 .carrito-vaciar {
