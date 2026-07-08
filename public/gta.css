@@ -205,6 +205,19 @@ body::before {
 }
 .product-img { background: rgba(12, 6, 24, 0.6); }
 
+/* Fotos con el fondo blanco recortado: el producto "flota" sobre la card
+   con su propia sombra (la clase la agrega quitarFondoBlanco en utils.js) */
+.product-img img.img-recortada,
+.producto-gallery-main img.img-recortada {
+    object-fit: contain;
+    padding: 7%;
+    filter: drop-shadow(0 14px 22px rgba(4, 1, 12, 0.55));
+}
+.producto-gallery-thumbs img.img-recortada {
+    object-fit: contain;
+    padding: 3px;
+}
+
 .skeleton-card { background: rgba(23, 16, 41, 0.7); border-radius: 18px; }
 .skeleton-img, .skeleton-line { background: rgba(123, 61, 240, 0.16); }
 

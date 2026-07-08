@@ -3,8 +3,26 @@ const assert = require('node:assert');
 const {
     escapeHTML, safeHref, formatearPrecio, urlML,
     extraerMLId, mlHighResImage, mlGridImage, fotosArray, whatsappHref,
-    colorHex, coloresChips,
+    colorHex, coloresChips, recortarBlanco,
 } = require('../public/utils.js');
+
+// Arma un ImageData sintetico (solo necesita .data) de w*h relleno con un color
+function imagenDe(w, h, [r, g, b]) {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < data.length; i += 4) {
+        data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+    }
+    return { data };
+}
+
+function pintar(img, w, x, y, [r, g, b]) {
+    const i = (y * w + x) * 4;
+    img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b;
+}
+
+function alphaEn(img, w, x, y) {
+    return img.data[(y * w + x) * 4 + 3];
+}
 
 test('escapeHTML escapa caracteres especiales de HTML', () => {
     assert.strictEqual(escapeHTML('<script>alert(1)</script>'), '&lt;script&gt;alert(1)&lt;/script&gt;');
@@ -111,4 +129,35 @@ test('coloresChips genera swatches y respeta el maximo', () => {
     assert.match(html, /background:#1a1a1a/);
     // mas colores que el maximo -> muestra el contador "+N"
     assert.match(coloresChips('Negro,Rojo,Azul', 2), /\+1/);
+});
+
+test('recortarBlanco vuelve transparente el fondo blanco conectado al borde', () => {
+    const w = 10, h = 10;
+    const img = imagenDe(w, h, [255, 255, 255]);
+    // producto rojo en el centro con un "agujero" blanco adentro (no conectado al borde)
+    for (let y = 3; y <= 6; y++) for (let x = 3; x <= 6; x++) pintar(img, w, x, y, [200, 30, 30]);
+    pintar(img, w, 5, 5, [255, 255, 255]);
+
+    assert.strictEqual(recortarBlanco(img, w, h), true);
+    assert.strictEqual(alphaEn(img, w, 0, 0), 0, 'esquina transparente');
+    assert.strictEqual(alphaEn(img, w, 9, 5), 0, 'borde transparente');
+    assert.strictEqual(alphaEn(img, w, 4, 4), 255, 'producto queda opaco');
+    assert.strictEqual(alphaEn(img, w, 5, 5), 255, 'blanco DENTRO del producto no se recorta');
+});
+
+test('recortarBlanco deja un degrade en las sombras claras del borde', () => {
+    const w = 8, h = 8;
+    const img = imagenDe(w, h, [255, 255, 255]);
+    pintar(img, w, 4, 4, [230, 230, 230]); // sombra suave conectada al fondo
+
+    assert.strictEqual(recortarBlanco(img, w, h), true);
+    const a = alphaEn(img, w, 4, 4);
+    assert.ok(a > 0 && a < 255, `sombra semi-transparente (alpha=${a})`);
+});
+
+test('recortarBlanco no toca fotos que no tienen fondo blanco', () => {
+    const w = 6, h = 6;
+    const img = imagenDe(w, h, [40, 20, 60]);
+    assert.strictEqual(recortarBlanco(img, w, h), false);
+    assert.strictEqual(alphaEn(img, w, 0, 0), 255);
 });

@@ -49,9 +49,9 @@ async function cargarProducto() {
         if (fotos.length) {
             galeriaHTML = `
                 <div class="producto-gallery-main">
-                    <img id="galleryMain" src="${escapeHTML(safeHref(fotos[0]))}" alt="${escapeHTML(p.nombre)}" onerror="imgFallback(this)">
+                    <img id="galleryMain" src="${escapeHTML(safeHref(fotos[0]))}" alt="${escapeHTML(p.nombre)}" onload="quitarFondoBlanco(this)" onerror="imgFallback(this)">
                 </div>
-                ${fotos.length > 1 ? `<div class="producto-gallery-thumbs">${fotos.map((f, i) => `<img src="${escapeHTML(safeHref(f))}" class="${i === 0 ? 'active' : ''}" onclick="cambiarFoto(this, '${escapeHTML(safeHref(f))}')" alt="Foto ${i + 1}" onerror="imgFallback(this)">`).join('')}</div>` : ''}
+                ${fotos.length > 1 ? `<div class="producto-gallery-thumbs">${fotos.map((f, i) => `<img src="${escapeHTML(safeHref(f))}" class="${i === 0 ? 'active' : ''}" onclick="cambiarFoto(this, '${escapeHTML(safeHref(f))}')" alt="Foto ${i + 1}" onload="quitarFondoBlanco(this)" onerror="imgFallback(this)">`).join('')}</div>` : ''}
             `;
         } else {
             galeriaHTML = `<div class="producto-gallery-main"><div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div></div>`;
@@ -110,7 +110,7 @@ async function cargarProducto() {
                 <h2>Productos similares</h2>
                 <div class="eshop-grid">${data.similares.map(s => {
                     const sFoto = mlGridImage(fotosArray(s.fotos)[0]);
-                    const sImg = sFoto ? `<img src="${escapeHTML(safeHref(sFoto))}" alt="${escapeHTML(s.nombre)}" loading="lazy" decoding="async" onerror="imgFallback(this)">` : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
+                    const sImg = sFoto ? `<img src="${escapeHTML(safeHref(sFoto))}" alt="${escapeHTML(s.nombre)}" loading="lazy" decoding="async" onload="quitarFondoBlanco(this)" onerror="imgFallback(this)">` : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
                     const sPrecio = parseFloat(s.precioventa) || 0;
                     return `
                         <article class="product-card" onclick="window.location.href='/producto.html?id=${s.id}'" style="cursor:pointer">
@@ -128,9 +128,15 @@ async function cargarProducto() {
     }
 }
 
+// El src visible puede haber sido reemplazado por el blob recortado;
+// la URL original queda guardada en dataset.srcOriginal.
+function srcOriginalDe(img) {
+    return img.dataset.srcOriginal || img.getAttribute('src');
+}
+
 function cambiarFoto(el, src) {
     const main = document.getElementById('galleryMain');
-    if (main) main.src = src;
+    if (main && srcOriginalDe(main) !== src) main.src = src;
     document.querySelectorAll('.producto-gallery-thumbs img').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
 }
@@ -152,10 +158,10 @@ function seleccionarColor(btn) {
 
     if (url && url !== '#') {
         const main = document.getElementById('galleryMain');
-        if (main) main.src = url;
+        if (main && srcOriginalDe(main) !== url) main.src = url;
         // marcar como activa la miniatura que coincida con la foto del color
         document.querySelectorAll('.producto-gallery-thumbs img').forEach(img => {
-            img.classList.toggle('active', img.getAttribute('src') === url);
+            img.classList.toggle('active', srcOriginalDe(img) === url);
         });
     }
 }

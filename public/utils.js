@@ -97,6 +97,86 @@ function coloresChips(coloresStr, max = 6) {
     return `<div class="color-swatches" title="Colores: ${escapeHTML(cols.join(', '))}">${swatches}${extra}</div>`;
 }
 
+/* --- Recorte automatico de fondo blanco (fotos de ML) ---
+   Las fotos suben siempre sobre fondo blanco (requisito de ML). Al cargar cada
+   imagen se hace flood-fill desde los bordes: solo se vuelve transparente el
+   blanco CONECTADO al borde, asi no se comen las partes blancas del producto
+   (una pieza impresa en PLA blanco, por ejemplo). Si el CDN no permite leer
+   los pixeles (CORS) o el fondo no es blanco, la foto queda como esta. */
+
+function quitarFondoBlanco(img) {
+    if (typeof document === 'undefined') return;
+    const src = img.currentSrc || img.src;
+    if (!src || src.startsWith('blob:') || src.startsWith('data:') || img.dataset.procesada === src) return;
+    img.dataset.procesada = src;
+
+    // Se carga en un Image aparte con crossOrigin: si el CDN no manda CORS,
+    // falla este worker y la foto visible queda intacta.
+    const worker = new Image();
+    worker.crossOrigin = 'anonymous';
+    worker.onload = () => {
+        try {
+            const MAX = 900; // suficiente para cards y ficha; achica el costo de proceso
+            const escala = Math.min(1, MAX / Math.max(worker.width, worker.height));
+            const w = Math.max(1, Math.round(worker.width * escala));
+            const h = Math.max(1, Math.round(worker.height * escala));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(worker, 0, 0, w, h);
+            const imgData = ctx.getImageData(0, 0, w, h);
+            if (!recortarBlanco(imgData, w, h)) return;
+            ctx.putImageData(imgData, 0, 0);
+            canvas.toBlob(blob => {
+                if (!blob) return;
+                img.dataset.srcOriginal = src;
+                img.src = URL.createObjectURL(blob);
+                img.classList.add('img-recortada');
+            }, 'image/png');
+        } catch { /* canvas tainted u otro error: dejar la foto original */ }
+    };
+    worker.src = src;
+}
+
+// Vuelve transparente el fondo blanco conectado al borde. Modifica imgData
+// in-place y devuelve true si recorto (false si el fondo no era blanco).
+function recortarBlanco(imgData, w, h) {
+    const d = imgData.data;
+    const LIMITE = 220;       // que tan claro tiene que ser un pixel para contar como fondo
+    const BLANCO_PLENO = 246; // de aca para arriba: transparente total
+    const minRGB = i => Math.min(d[i], d[i + 1], d[i + 2]);
+
+    // Si las esquinas no son blancas, la foto no tiene fondo blanco: no tocar
+    const esquinas = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + w - 1) * 4];
+    if (esquinas.filter(i => minRGB(i) >= 240).length < 3) return false;
+
+    // Flood fill desde todos los pixeles del borde
+    const visitado = new Uint8Array(w * h);
+    const pila = [];
+    for (let x = 0; x < w; x++) { pila.push(x, (h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { pila.push(y * w, y * w + w - 1); }
+    while (pila.length) {
+        const p = pila.pop();
+        if (visitado[p]) continue;
+        visitado[p] = 1;
+        const i = p * 4;
+        const blancura = minRGB(i);
+        if (blancura < LIMITE) continue; // no es fondo: el fill no atraviesa el producto
+        // cuanto mas blanco, mas transparente (degrade suave en las sombras)
+        d[i + 3] = blancura >= BLANCO_PLENO
+            ? 0
+            : Math.round(255 * (BLANCO_PLENO - blancura) / (BLANCO_PLENO - LIMITE));
+        const x = p % w;
+        const y = (p / w) | 0;
+        if (x > 0) pila.push(p - 1);
+        if (x < w - 1) pila.push(p + 1);
+        if (y > 0) pila.push(p - w);
+        if (y < h - 1) pila.push(p + w);
+    }
+    return true;
+}
+
 /* --- Card de producto para grillas publicas (home + eshop) --- */
 
 function skeletonCards(n) {
@@ -117,7 +197,7 @@ function renderProductoCard(p, i) {
     const fotoOk = foto && /^https?:\/\//i.test(foto);
     const eager = i < 4; // las primeras imagenes cargan sin lazy (mejora el LCP)
     const img = fotoOk
-        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="${eager ? 'eager' : 'lazy'}" ${eager ? 'fetchpriority="high"' : ''} decoding="async" onerror="imgFallback(this)">`
+        ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="${eager ? 'eager' : 'lazy'}" ${eager ? 'fetchpriority="high"' : ''} decoding="async" onload="quitarFondoBlanco(this)" onerror="imgFallback(this)">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
     const badgeDigital = p.es_digital ? '<span class="badge-stl-card">Archivo digital</span>' : '';
     const cant = parseInt(p.cantidad) || 0;
@@ -179,6 +259,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         escapeHTML, safeHref, WHATSAPP_NUMERO, whatsappHref,
         formatearPrecio, urlML, extraerMLId, mlHighResImage, mlGridImage, fotosArray,
-        colorHex, coloresChips,
+        colorHex, coloresChips, recortarBlanco,
     };
 }
