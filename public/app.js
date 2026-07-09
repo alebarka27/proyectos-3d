@@ -566,17 +566,11 @@ function toggleSoloDigitales() {
     renderTabla();
 }
 
-// Badges de estado para productos digitales (Archivo en Drive / linkeado a ML / listo)
+// Etiqueta para productos digitales. Solo dice "Digital": el estado del archivo
+// y de ML ya se ve en las columnas Link Archivo y ML de la misma fila.
 function digitalBadges(p) {
     if (!p.es_digital) return '';
-    const archOk = !!p.drive_file_id, mlOk = !!p.ml_id;
-    const listo = archOk && mlOk;
-    return `<div class="badges-digital">
-        <span class="dbadge badge-digital">Digital</span>
-        <span class="dbadge ${archOk ? 'badge-ok' : 'badge-no'}">Archivo ${archOk ? '✓' : '✗'}</span>
-        <span class="dbadge ${mlOk ? 'badge-ok' : 'badge-no'}">ML ${mlOk ? '✓' : '✗'}</span>
-        ${listo ? '<span class="dbadge badge-listo">Listo ✓</span>' : ''}
-    </div>`;
+    return ' <span class="dbadge badge-digital">Digital</span>';
 }
 
 let publicarMLId = null;

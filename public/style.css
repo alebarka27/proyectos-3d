@@ -1541,13 +1541,8 @@ td a:hover { text-decoration: underline; }
 
 .muted { color: var(--text-dim); font-size: 13px; margin: 4px 0; }
 
-.badges-digital { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 .dbadge { font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; }
-.badge-digital { background: var(--surface-2); color: var(--text); border-color: var(--border-strong, var(--border)); }
-
-.badge-ok { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
-.badge-no { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); color: var(--danger); }
-.badge-listo { background: var(--success); color: #06210f; border-color: var(--success); font-weight: 600; }
+.badge-digital { background: var(--surface-2); color: var(--text); border-color: var(--border-strong, var(--border)); vertical-align: 1px; }
 
 /* --- Tienda publica: selector de orden y badge de archivo digital --- */
 .eshop-orden { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
