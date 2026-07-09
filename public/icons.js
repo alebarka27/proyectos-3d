@@ -47,6 +47,12 @@ const ICONS = {
     inbox: '<path d="M3 8 5.5 3h9L17 8"/><path d="M3 8v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M3 8h4.5l.8 2h3.4l.8-2H17"/>',
 
     close: '<line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>',
+
+    search: '<circle cx="8.5" cy="8.5" r="5"/><path d="M14.5 14.5 18 18"/>',
+
+    dashboard: '<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="3.5" rx="1"/><rect x="11" y="8.5" width="6" height="8.5" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/>',
+
+    'trending-up': '<path d="M3 14.5 8 9.5l3 3L17 6"/><path d="M13 6h4v4"/>',
 };
 
 function icon(name, cls) {

@@ -50,7 +50,7 @@ async function cargar() {
         checkMLStatus();
     }
 
-    cambiarVista('tienda');
+    cambiarVista(authed ? 'dashboard' : 'tienda');
 }
 
 function renderSidebar() {
@@ -72,7 +72,7 @@ function renderSidebar() {
 }
 
 function ganancia(p) {
-    const venta = parseFloat(p.precioVenta) || 0;
+    const venta = parseFloat(p.precioventa) || 0;
     const costo = parseFloat(p.costo) || 0;
     const cant = parseInt(p.vendidos) || 0;
     return (venta - costo) * cant;
@@ -279,14 +279,76 @@ let tiendaTimeout = null;
 
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 
-function renderTabla() {
+/* Ordenamiento de la tabla de proyectos */
+let sortCol = '';
+let sortDir = 1;
+
+const SORT_GETTERS = {
+    nombre: p => (p.nombre || '').toLowerCase(),
+    codigo: p => (p.codigo || '').toLowerCase(),
+    categoria: p => (p.categoria || '').toLowerCase(),
+    costo: p => parseFloat(p.costo) || 0,
+    precioventa: p => parseFloat(p.precioventa) || 0,
+    vendidos: p => parseInt(p.vendidos) || 0,
+    stock: p => parseInt(p.cantidad) || 0,
+    ganancia: p => ganancia(p),
+    estado: p => p.estado || '',
+};
+
+function ordenarPor(col) {
+    if (sortCol === col) {
+        sortDir = -sortDir;
+    } else {
+        sortCol = col;
+        sortDir = 1;
+    }
+    document.querySelectorAll('#tabla th[data-sort]').forEach(th => {
+        th.classList.toggle('th-sorted-asc', th.dataset.sort === sortCol && sortDir === 1);
+        th.classList.toggle('th-sorted-desc', th.dataset.sort === sortCol && sortDir === -1);
+    });
+    renderTabla();
+}
+
+document.querySelectorAll('#tabla th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => ordenarPor(th.dataset.sort));
+});
+
+function proyectosFiltrados() {
     let filtrados = catActual ? todosProyectos.filter(p => p.categoria === catActual) : todosProyectos;
+    if (proySearchTerm) {
+        filtrados = filtrados.filter(p => {
+            const hay = [p.nombre, p.codigo, p.categoria, p.estado, p.descripcion]
+                .filter(Boolean).join(' ').toLowerCase();
+            return hay.includes(proySearchTerm);
+        });
+    }
     if (soloDigitales) filtrados = filtrados.filter(p => p.es_digital);
+    if (sortCol && SORT_GETTERS[sortCol]) {
+        const get = SORT_GETTERS[sortCol];
+        filtrados = [...filtrados].sort((a, b) => {
+            const va = get(a), vb = get(b);
+            if (va < vb) return -sortDir;
+            if (va > vb) return sortDir;
+            return 0;
+        });
+    }
+    return filtrados;
+}
+
+function stockPill(p) {
+    const stock = parseInt(p.cantidad) || 0;
+    if (stock <= 0) return '<span class="stock-pill stock-pill-agotado">Agotado</span>';
+    if (stock <= 2) return `<span class="stock-pill stock-pill-bajo">${stock}</span>`;
+    return `<span class="stock-pill">${stock}</span>`;
+}
+
+function renderTabla() {
+    const filtrados = proyectosFiltrados();
     const tbody = document.getElementById('tbody');
     if (!filtrados.length) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="12">
+                <td colspan="13">
                     <div class="empty-state">
                         ${icon('inbox', 'icon-lg')}
                         <p class="empty-state-title">No hay proyectos${catActual ? ` en "${escapeHTML(catActual)}"` : ''}</p>
@@ -294,13 +356,16 @@ function renderTabla() {
                     </div>
                 </td>
             </tr>`;
+        const countEl = document.getElementById('proyCount');
+        if (countEl) countEl.textContent = `0 de ${todosProyectos.length} proyectos`;
         return;
     }
     tbody.innerHTML = filtrados.map(p => {
         const g = ganancia(p);
         const costo = parseFloat(p.costo) || 0;
-        const pv = parseFloat(p.precioVenta) || 0;
+        const pv = parseFloat(p.precioventa) || 0;
         const vend = parseInt(p.vendidos) || 0;
+        const stock = parseInt(p.cantidad) || 0;
         const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
         return `
             <tr>
@@ -308,23 +373,42 @@ function renderTabla() {
                 <td data-label="Código">${escapeHTML(p.codigo)}</td>
                 <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
                 <td data-label="Link Archivo">${[
-                    p.linkArchivo ? `<a href="${escapeHTML(safeHref(p.linkArchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '',
+                    p.linkarchivo ? `<a href="${escapeHTML(safeHref(p.linkarchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '',
                     p.drive_file_id ? `<a href="https://drive.google.com/file/d/${escapeHTML(p.drive_file_id)}/view" target="_blank" rel="noopener noreferrer" title="Abrir en Google Drive">${icon('link-external')} Drive</a>` : ''
                 ].filter(Boolean).join(' ') || '-'}</td>
-                <td data-label="Costo">${costo ? '$'+costo : '-'}</td>
-                <td data-label="Precio Vta">${pv ? '$'+pv : '-'}</td>
+                <td data-label="Costo">${costo ? '$'+formatearPrecio(costo) : '-'}</td>
+                <td data-label="Precio Vta">${pv ? '$'+formatearPrecio(pv) : '-'}</td>
                 <td data-label="Vend.">${vend || '-'}</td>
-                <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+g : '-'}</td>
+                <td data-label="Stock">${stockPill(p)}</td>
+                <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+formatearPrecio(g) : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
                 <td data-label="ML">${p.ml_id ? `<a href="${urlML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">${icon('link-external')} ML</a>` : `<button class="btn-sm" onclick="abrirPublicarML('${p.id}')">${icon('box')} Publicar</button>`}</td>
                 <td data-label="Eshop"><button class="btn-sm ${p.publicareshop ? 'btn-eshop-on' : 'btn-eshop-off'}" onclick="toggleEshop('${p.id}', ${!!p.publicareshop})">${p.publicareshop ? `${icon('bag')} En tienda` : `${icon('box')} Publicar`}</button></td>
                 <td data-label="Acciones">
-                    <button class="btn-sm" onclick="editar('${p.id}')">${icon('pencil')}</button>
+                    ${stock > 0 ? `<button class="btn-sm" title="Venta rápida (1 unidad)" onclick="venderRapido('${p.id}')">${icon('cart')}</button>` : ''}
+                    <button class="btn-sm" title="Editar" onclick="editar('${p.id}')">${icon('pencil')}</button>
                     <button class="btn-sm" title="Duplicar" onclick="duplicarProyecto('${p.id}')">${icon('clipboard')}</button>
-                    <button class="btn-sm btn-peligro" onclick="eliminar('${p.id}')">${icon('trash')}</button>
+                    <button class="btn-sm btn-peligro" title="Eliminar" onclick="eliminar('${p.id}')">${icon('trash')}</button>
                 </td>
             </tr>`;
     }).join('');
+
+    const countEl = document.getElementById('proyCount');
+    if (countEl) countEl.textContent = `${filtrados.length} de ${todosProyectos.length} proyectos`;
+}
+
+async function venderRapido(id) {
+    const p = todosProyectos.find(x => x.id === id);
+    if (!p) return;
+    const pv = parseFloat(p.precioventa) || 0;
+    const ok = await showConfirm(
+        `¿Registrar la venta de 1 × "${p.nombre}"${pv ? ` a $${formatearPrecio(pv)}` : ''}? Baja el stock en 1 y crea la venta.`,
+        { title: 'Venta rápida', confirmLabel: 'Registrar venta' }
+    );
+    if (!ok) return;
+    await apiFetch(`${API_PROY}/${id}/vender`, { method: 'PATCH' });
+    showToast('Venta registrada', 'success');
+    cargar();
 }
 
 function filtrar(cat) {
@@ -400,9 +484,9 @@ async function editar(id) {
     document.getElementById('nombre').value = p.nombre;
     document.getElementById('codigo').value = p.codigo;
     document.getElementById('categoria').value = p.categoria || '';
-    document.getElementById('linkArchivo').value = p.linkArchivo || '';
+    document.getElementById('linkArchivo').value = p.linkarchivo || '';
     document.getElementById('costo').value = p.costo || '';
-    document.getElementById('precioVenta').value = p.precioVenta || '';
+    document.getElementById('precioVenta').value = p.precioventa || '';
     document.getElementById('vendidos').value = p.vendidos || '';
     document.getElementById('cantidad').value = p.cantidad || '';
     document.getElementById('mlId').value = p.ml_id || '';
@@ -649,28 +733,52 @@ async function cargarVentas() {
     todasLasVentas = await res.json();
 }
 
+/* Filtro por período de la vista Ventas */
+let ventasPeriodo = 'todo';
+
+function cambiarPeriodoVentas() {
+    ventasPeriodo = document.getElementById('ventaPeriodo').value;
+    renderVentas();
+}
+
+function ventasFiltradas() {
+    if (ventasPeriodo === 'todo') return todasLasVentas;
+    const hoy = new Date();
+    let desde = '';
+    if (ventasPeriodo === 'mes') {
+        desde = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
+    } else if (ventasPeriodo === '30dias') {
+        desde = new Date(hoy.getTime() - 30 * 86400000).toISOString().split('T')[0];
+    } else if (ventasPeriodo === 'anio') {
+        desde = `${hoy.getFullYear()}-01-01`;
+    }
+    // Las fechas son strings YYYY-MM-DD: se pueden comparar alfabéticamente
+    return todasLasVentas.filter(v => (v.fecha || '') >= desde);
+}
+
 function renderVentas() {
-    const totalVendidos = todasLasVentas.reduce((s, v) => s + (v.cantidad || 0), 0);
-    const totalIngresos = todasLasVentas.reduce((s, v) => s + (v.cantidad || 0) * (v.precioVenta || 0), 0);
-    const totalCostos = todasLasVentas.reduce((s, v) => s + (v.cantidad || 0) * (v.costo || 0), 0);
+    const ventas = ventasFiltradas();
+    const totalVendidos = ventas.reduce((s, v) => s + (v.cantidad || 0), 0);
+    const totalIngresos = ventas.reduce((s, v) => s + (v.cantidad || 0) * (v.precioventa || 0), 0);
+    const totalCostos = ventas.reduce((s, v) => s + (v.cantidad || 0) * (v.costo || 0), 0);
     const totalGanancia = totalIngresos - totalCostos;
 
     document.getElementById('stat-vendidos').textContent = totalVendidos + ' uds';
-    document.getElementById('stat-ingresos').textContent = '$' + totalIngresos.toFixed(2);
-    document.getElementById('stat-costos').textContent = '$' + totalCostos.toFixed(2);
-    document.getElementById('stat-ganancia').textContent = '$' + totalGanancia.toFixed(2);
+    document.getElementById('stat-ingresos').textContent = '$' + formatearPrecio(totalIngresos);
+    document.getElementById('stat-costos').textContent = '$' + formatearPrecio(totalCostos);
+    document.getElementById('stat-ganancia').textContent = '$' + formatearPrecio(totalGanancia);
 
     const tbody = document.getElementById('tbodyVentas');
-    const ordenadas = [...todasLasVentas].reverse();
+    const ordenadas = [...ventas].reverse();
     tbody.innerHTML = ordenadas.map(v => {
-        const gan = (v.precioVenta - v.costo) * v.cantidad;
+        const gan = ((v.precioventa || 0) - (v.costo || 0)) * (v.cantidad || 0);
         return `
             <tr>
-                <td data-label="Proyecto">${escapeHTML(v.proyectoNombre || 'Sin proyecto')}</td>
+                <td data-label="Proyecto">${escapeHTML(v.proyectonombre || 'Sin proyecto')}</td>
                 <td data-label="Cant.">${v.cantidad}</td>
-                <td data-label="Precio Venta">$${(v.precioVenta || 0).toFixed(2)}</td>
-                <td data-label="Costo">$${(v.costo || 0).toFixed(2)}</td>
-                <td data-label="Ganancia" class="${gan > 0 ? 'text-verde' : gan < 0 ? 'text-rojo' : ''}">$${gan.toFixed(2)}</td>
+                <td data-label="Precio Venta">$${formatearPrecio(v.precioventa || 0)}</td>
+                <td data-label="Costo">$${formatearPrecio(v.costo || 0)}</td>
+                <td data-label="Ganancia" class="${gan > 0 ? 'text-verde' : gan < 0 ? 'text-rojo' : ''}">$${formatearPrecio(gan)}</td>
                 <td data-label="Fecha">${escapeHTML(v.fecha)}</td>
                 <td data-label="Acciones"><button class="btn-sm btn-peligro" onclick="eliminarVenta('${v.id}')">${icon('trash')}</button></td>
             </tr>`;
@@ -679,38 +787,186 @@ function renderVentas() {
             <td colspan="7">
                 <div class="empty-state">
                     ${icon('inbox', 'icon-lg')}
-                    <p class="empty-state-title">Sin ventas registradas</p>
-                    <p class="empty-state-text">Presioná "Registrar Venta" para agregar la primera.</p>
+                    <p class="empty-state-title">Sin ventas${ventasPeriodo !== 'todo' ? ' en este período' : ' registradas'}</p>
+                    <p class="empty-state-text">${ventasPeriodo !== 'todo' ? 'Probá con otro período.' : 'Presioná "Registrar Venta" para agregar la primera.'}</p>
                 </div>
             </td>
         </tr>`;
 
-    document.getElementById('tfootVentas').innerHTML = todasLasVentas.length ? `
+    document.getElementById('tfootVentas').innerHTML = ventas.length ? `
         <tr class="total-row">
             <td data-label="Proyecto"><strong>TOTAL</strong></td>
             <td data-label="Cant."><strong>${totalVendidos}</strong></td>
             <td data-label="Precio Venta"></td>
-            <td data-label="Costo"><strong>$${totalCostos.toFixed(2)}</strong></td>
-            <td data-label="Ganancia" class="${totalGanancia > 0 ? 'text-verde' : totalGanancia < 0 ? 'text-rojo' : ''}"><strong>$${totalGanancia.toFixed(2)}</strong></td>
+            <td data-label="Costo"><strong>$${formatearPrecio(totalCostos)}</strong></td>
+            <td data-label="Ganancia" class="${totalGanancia > 0 ? 'text-verde' : totalGanancia < 0 ? 'text-rojo' : ''}"><strong>$${formatearPrecio(totalGanancia)}</strong></td>
             <td data-label="Fecha"></td><td data-label="Acciones"></td>
         </tr>` : '';
 }
 
+/* --- Exportar a CSV --- */
+
+function descargarCSV(nombreArchivo, encabezados, filas) {
+    const esc = v => {
+        const s = String(v == null ? '' : v);
+        return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const csv = [encabezados, ...filas].map(f => f.map(esc).join(';')).join('\r\n');
+    // BOM para que Excel abra bien los acentos
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombreArchivo;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function exportarProyectosCSV() {
+    const filas = proyectosFiltrados().map(p => [
+        p.nombre, p.codigo, p.categoria, p.estado,
+        parseFloat(p.costo) || 0, parseFloat(p.precioventa) || 0,
+        parseInt(p.vendidos) || 0, parseInt(p.cantidad) || 0,
+        ganancia(p), p.publicareshop ? 'Sí' : 'No', p.ml_id || '', p.fecha || '',
+    ]);
+    if (!filas.length) { showToast('No hay proyectos para exportar', 'error'); return; }
+    descargarCSV(`proyectos-${new Date().toISOString().split('T')[0]}.csv`,
+        ['Nombre', 'Código', 'Categoría', 'Estado', 'Costo', 'Precio venta', 'Vendidos', 'Stock', 'Ganancia', 'En tienda', 'ID ML', 'Fecha'], filas);
+    showToast(`${filas.length} proyectos exportados`, 'success');
+}
+
+function exportarVentasCSV() {
+    const filas = ventasFiltradas().map(v => [
+        v.proyectonombre || 'Sin proyecto', v.cantidad || 0,
+        v.precioventa || 0, v.costo || 0,
+        ((v.precioventa || 0) - (v.costo || 0)) * (v.cantidad || 0), v.fecha || '',
+    ]);
+    if (!filas.length) { showToast('No hay ventas para exportar', 'error'); return; }
+    descargarCSV(`ventas-${new Date().toISOString().split('T')[0]}.csv`,
+        ['Proyecto', 'Cantidad', 'Precio venta', 'Costo', 'Ganancia', 'Fecha'], filas);
+    showToast(`${filas.length} ventas exportadas`, 'success');
+}
+
+/* --- Dashboard --- */
+
+function renderDashboard() {
+    const totalProyectos = todosProyectos.length;
+    const enTienda = todosProyectos.filter(p => p.publicareshop).length;
+    const totalVendidos = todasLasVentas.reduce((s, v) => s + (v.cantidad || 0), 0);
+    const totalIngresos = todasLasVentas.reduce((s, v) => s + (v.cantidad || 0) * (v.precioventa || 0), 0);
+    const totalCostos = todasLasVentas.reduce((s, v) => s + (v.cantidad || 0) * (v.costo || 0), 0);
+    const totalGanancia = totalIngresos - totalCostos;
+    const cats = [...new Set(todosProyectos.map(p => p.categoria).filter(Boolean))];
+
+    const container = document.getElementById('dashCards');
+    if (container) {
+        container.innerHTML = `
+            <div class="dash-card dash-card-productos">
+                <div class="dash-card-icon">${icon('box')}</div>
+                <div class="dash-card-label">Productos</div>
+                <div class="dash-card-value">${totalProyectos}</div>
+                <div class="dash-card-sub">${enTienda} publicados · ${cats.length} categorías</div>
+            </div>
+            <div class="dash-card dash-card-ventas">
+                <div class="dash-card-icon">${icon('check')}</div>
+                <div class="dash-card-label">Vendidos</div>
+                <div class="dash-card-value">${totalVendidos} uds</div>
+                <div class="dash-card-sub">${todasLasVentas.length} ventas registradas</div>
+            </div>
+            <div class="dash-card dash-card-ingresos">
+                <div class="dash-card-icon">${icon('wallet')}</div>
+                <div class="dash-card-label">Ingresos</div>
+                <div class="dash-card-value">$${formatearPrecio(totalIngresos)}</div>
+                <div class="dash-card-sub">Costos: $${formatearPrecio(totalCostos)}</div>
+            </div>
+            <div class="dash-card dash-card-ganancia">
+                <div class="dash-card-icon">${icon('trending-up') || icon('bag')}</div>
+                <div class="dash-card-label">Ganancia neta</div>
+                <div class="dash-card-value" style="color: ${totalGanancia >= 0 ? 'var(--success)' : 'var(--danger)'}">$${formatearPrecio(Math.abs(totalGanancia))}</div>
+                <div class="dash-card-sub">Margen: ${totalIngresos > 0 ? ((totalGanancia / totalIngresos) * 100).toFixed(1) : '0'}%</div>
+            </div>
+        `;
+    }
+
+    // Alertas de stock: publicados en la tienda con stock agotado o bajo (≤ 2)
+    const alertas = todosProyectos
+        .filter(p => p.publicareshop && !p.es_digital && (parseInt(p.cantidad) || 0) <= 2)
+        .sort((a, b) => (parseInt(a.cantidad) || 0) - (parseInt(b.cantidad) || 0));
+    const alertBox = document.getElementById('dashAlertas');
+    if (alertBox) {
+        if (!alertas.length) {
+            alertBox.classList.add('hidden');
+            alertBox.innerHTML = '';
+        } else {
+            alertBox.classList.remove('hidden');
+            alertBox.innerHTML = `
+                <div class="dash-alertas-header">${icon('warning')} Stock bajo en la tienda (${alertas.length})</div>
+                ${alertas.map(p => `
+                    <div class="dash-alerta-item">
+                        <span class="dash-alerta-nombre">${escapeHTML(p.nombre)}</span>
+                        ${stockPill(p)}
+                        <button class="btn-sm" onclick="editar('${p.id}')">${icon('pencil')} Reponer</button>
+                    </div>`).join('')}`;
+        }
+    }
+
+    // Recent projects (last 5)
+    const recent = [...todosProyectos].slice(-5).reverse();
+    const body = document.getElementById('dashRecentBody');
+    if (body) {
+        if (!recent.length) {
+            body.innerHTML = `<tr><td colspan="5"><div class="empty-state">${icon('inbox', 'icon-lg')}<p class="empty-state-title">Sin proyectos</p></div></td></tr>`;
+        } else {
+            const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
+            body.innerHTML = recent.map(p => {
+                const pv = parseFloat(p.precioventa) || 0;
+                const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
+                return `<tr>
+                    <td data-label="Nombre">${escapeHTML(p.nombre)}</td>
+                    <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
+                    <td data-label="Precio Vta">${pv ? '$' + formatearPrecio(pv) : '-'}</td>
+                    <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado || 'Planificado')}</span></td>
+                    <td data-label="Eshop">${p.publicareshop ? '<span style="color:var(--success)">✓ Publicado</span>' : '<span style="color:var(--text-faint)">No</span>'}</td>
+                </tr>`;
+            }).join('');
+        }
+    }
+}
+
+/* --- Project search --- */
+
+let proySearchTerm = '';
+
+function filtrarProyectos() {
+    proySearchTerm = (document.getElementById('proySearch')?.value || '').toLowerCase().trim();
+    renderTabla();
+}
+
 function cambiarVista(vista) {
-    const etiquetas = { tienda: 'Tienda', proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
+    const etiquetas = { dashboard: 'Dashboard', tienda: 'Tienda', proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
     document.querySelectorAll('.tab').forEach(t => {
         t.classList.toggle('tab-activo', t.textContent.includes(etiquetas[vista]));
     });
-    document.getElementById('vistaTienda').classList.toggle('hidden', vista !== 'tienda');
-    document.getElementById('vistaProyectos').classList.toggle('hidden', vista !== 'proyectos');
-    document.getElementById('vistaVentas').classList.toggle('hidden', vista !== 'ventas');
-    document.getElementById('vistaCalculadora').classList.toggle('hidden', vista !== 'calculadora');
+    const vistas = ['Dashboard', 'Tienda', 'Proyectos', 'Ventas', 'Calculadora'];
+    vistas.forEach(v => {
+        const el = document.getElementById('vista' + v);
+        if (el) el.classList.toggle('hidden', v.toLowerCase() !== vista);
+    });
     document.getElementById('btnNuevo').classList.toggle('hidden', vista !== 'proyectos');
+    if (vista === 'dashboard') renderDashboard();
     if (vista === 'tienda') renderTienda();
     if (vista === 'ventas') renderVentas();
     if (vista === 'calculadora') calcularPrecio();
     if (vista === 'proyectos') renderTabla();
+    
+    // Add animation
+    const vistaEl = document.getElementById('vista' + vista.charAt(0).toUpperCase() + vista.slice(1));
+    if (vistaEl) {
+        vistaEl.classList.remove('view-enter');
+        void vistaEl.offsetWidth;
+        vistaEl.classList.add('view-enter');
+    }
 }
+
 
 /* --- Calculadora de costos --- */
 
@@ -751,7 +1007,7 @@ function usarComoCosto() {
 function mostrarFormVenta() {
     const select = document.getElementById('ventaProyecto');
     select.innerHTML = '<option value="">-- Seleccionar --</option>' +
-        todosProyectos.map(p => `<option value="${p.id}" data-costo="${p.costo || 0}" data-nombre="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.codigo)})</option>`).join('');
+        todosProyectos.map(p => `<option value="${p.id}" data-costo="${p.costo || 0}" data-precio="${p.precioventa || 0}" data-nombre="${escapeHTML(p.nombre)}">${escapeHTML(p.nombre)} (${escapeHTML(p.codigo)})</option>`).join('');
     document.getElementById('ventaCantidad').value = '1';
     document.getElementById('ventaPrecio').value = '';
     document.getElementById('ventaCosto').value = '';
@@ -768,6 +1024,9 @@ function cargarCostoVenta() {
     const opt = sel.options[sel.selectedIndex];
     if (opt && opt.dataset.costo) {
         document.getElementById('ventaCosto').value = opt.dataset.costo;
+    }
+    if (opt && parseFloat(opt.dataset.precio) > 0) {
+        document.getElementById('ventaPrecio').value = opt.dataset.precio;
     }
     calcGananciaVenta();
 }

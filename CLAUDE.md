@@ -47,6 +47,11 @@ Tres tablas, creadas automáticamente al arrancar:
 
 Al arrancar por primera vez, migra datos desde `proyectos.json` si existe y la DB está vacía.
 
+**Importante**: la API devuelve las filas tal cual salen de Postgres, con nombres de
+columna en minúsculas (`precioventa`, `linkarchivo`, `proyectonombre`, `publicareshop`).
+En el frontend hay que leer esos nombres en minúsculas. El camelCase (`precioVenta`,
+`linkArchivo`) solo se usa en los *bodies* que el frontend envía a la API (POST/PUT).
+
 ## Rutas API principales
 
 | Método | Ruta | Auth | Descripción |
@@ -113,6 +118,5 @@ Push a `main` en GitHub → Vercel detecta y deploya automáticamente.
 
 ## Pendiente / Próximos pasos
 
-- Mejoras en el catálogo del panel admin
 - Sincronización de inventario con MercadoLibre (bidireccional)
 - Imagen Open Graph propia (PNG 1200×630 con la paleta Vice) para los links compartidos

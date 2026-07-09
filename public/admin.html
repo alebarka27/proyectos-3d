@@ -54,7 +54,11 @@
         <main class="main-content" id="mainContent">
             <div class="top-bar">
                 <div class="tabs">
-                    <button class="tab tab-activo" onclick="cambiarVista('tienda')">
+                    <button class="tab tab-auth tab-activo" onclick="cambiarVista('dashboard')">
+                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="3.5" rx="1"/><rect x="11" y="8.5" width="6" height="8.5" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/></svg>
+                        Dashboard
+                    </button>
+                    <button class="tab" onclick="cambiarVista('tienda')">
                         <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h10l.9 9.5a1 1 0 0 1-1 1.1H5.1a1 1 0 0 1-1-1.1L5 7z"/><path d="M7.5 7V5.5a2.5 2.5 0 0 1 5 0V7"/></svg>
                         Tienda
                     </button>
@@ -174,23 +178,79 @@
                 </div>
             </div>
 
+            <div id="vistaDashboard" class="hidden">
+                <div class="dashboard-grid" id="dashCards"></div>
+                <div id="dashAlertas" class="dash-alertas hidden"></div>
+
+                <h3 class="dash-section-title">Acciones rápidas</h3>
+                <div class="dash-actions">
+                    <button class="dash-action-btn" onclick="cambiarVista('proyectos'); document.getElementById('btnNuevo').click();">
+                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                        Nuevo proyecto
+                    </button>
+                    <button class="dash-action-btn" onclick="cambiarVista('ventas'); mostrarFormVenta();">
+                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 8.5h15"/><circle cx="14" cy="11.8" r="1" fill="currentColor" stroke="none"/></svg>
+                        Registrar venta
+                    </button>
+                    <button class="dash-action-btn" onclick="cambiarVista('calculadora')">
+                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="2.5" width="11" height="15" rx="1.5"/><rect x="6.5" y="4.5" width="7" height="3" rx="0.5"/></svg>
+                        Calculadora de costos
+                    </button>
+                    <button class="dash-action-btn" onclick="abrirCargaMasiva()">
+                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5 16.5 6 10 9.5 3.5 6z"/><path d="M3.5 6v8L10 17.5 16.5 14V6"/><path d="M10 9.5V17.5"/></svg>
+                        Carga masiva
+                    </button>
+                </div>
+
+                <div class="dash-recent">
+                    <div class="dash-recent-header">
+                        <h3>
+                            <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="12" height="14" rx="1.5"/><path d="M7.5 3.5h5v2h-5z"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
+                            Últimos proyectos
+                        </h3>
+                        <button class="btn-sm" onclick="cambiarVista('proyectos')">Ver todos</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th>Precio Vta</th>
+                                <th>Estado</th>
+                                <th>Eshop</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashRecentBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div id="vistaProyectos">
                 <div class="proy-toolbar">
-                    <button id="btnFiltroDigital" class="btn-sm" onclick="toggleSoloDigitales()">Solo digitales</button>
-                    <button class="btn-sm" onclick="abrirCargaMasiva()">Carga masiva</button>
+                    <div class="proy-search">
+                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="M14.5 14.5 18 18"/></svg>
+                        <input type="text" id="proySearch" placeholder="Buscar proyectos..." oninput="filtrarProyectos()" autocomplete="off">
+                    </div>
+                    <span class="proy-count" id="proyCount"></span>
+                    <div class="proy-toolbar-right">
+                        <button id="btnFiltroDigital" class="btn-sm" onclick="toggleSoloDigitales()">Solo digitales</button>
+                        <button class="btn-sm" onclick="abrirCargaMasiva()">Carga masiva</button>
+                        <button class="btn-sm" onclick="exportarProyectosCSV()" title="Descargar lo que se ve en la tabla como CSV">Exportar CSV</button>
+                    </div>
                 </div>
                 <table id="tabla">
                     <thead>
                         <tr>
-                            <th>Nombre</th>
-                            <th>Código</th>
-                            <th>Categoría</th>
+                            <th data-sort="nombre" title="Ordenar por nombre">Nombre</th>
+                            <th data-sort="codigo" title="Ordenar por código">Código</th>
+                            <th data-sort="categoria" title="Ordenar por categoría">Categoría</th>
                             <th>Link Archivo</th>
-                            <th>Costo</th>
-                            <th>Precio Vta</th>
-                            <th>Vend.</th>
-                            <th>Ganancia</th>
-                            <th>Estado</th>
+                            <th data-sort="costo" title="Ordenar por costo">Costo</th>
+                            <th data-sort="precioventa" title="Ordenar por precio">Precio Vta</th>
+                            <th data-sort="vendidos" title="Ordenar por vendidos">Vend.</th>
+                            <th data-sort="stock" title="Ordenar por stock">Stock</th>
+                            <th data-sort="ganancia" title="Ordenar por ganancia">Ganancia</th>
+                            <th data-sort="estado" title="Ordenar por estado">Estado</th>
                             <th>ML</th>
                             <th>Eshop</th>
                             <th>Acciones</th>
@@ -206,10 +266,19 @@
                         <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 8.5h15"/><circle cx="14" cy="11.8" r="1" fill="currentColor" stroke="none"/></svg>
                         Ventas y Ganancias
                     </h2>
-                    <button class="btn-primary" onclick="mostrarFormVenta()">
-                        <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                        Registrar Venta
-                    </button>
+                    <div class="ventas-toolbar">
+                        <select id="ventaPeriodo" class="select-periodo" onchange="cambiarPeriodoVentas()" title="Filtrar ventas por período">
+                            <option value="todo">Todo el historial</option>
+                            <option value="mes">Este mes</option>
+                            <option value="30dias">Últimos 30 días</option>
+                            <option value="anio">Este año</option>
+                        </select>
+                        <button class="btn-sm" onclick="exportarVentasCSV()" title="Descargar las ventas del período como CSV">Exportar CSV</button>
+                        <button class="btn-primary" onclick="mostrarFormVenta()">
+                            <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                            Registrar Venta
+                        </button>
+                    </div>
                 </div>
                 <div class="stats">
                     <div class="stat-card">
