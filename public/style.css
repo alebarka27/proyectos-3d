@@ -164,6 +164,10 @@ h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 .modal { background: var(--surface); border: 1px solid var(--border); padding: 28px; border-radius: var(--radius-lg); width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); animation: modal-in .2s cubic-bezier(.2, .8, .2, 1); }
 .modal h2 { margin-bottom: 20px; font-size: 17px; font-weight: 600; letter-spacing: .2px; }
 
+#formOverlay .modal { max-width: 560px; }
+#projectForm { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+#projectForm > * { grid-column: 1 / -1; min-width: 0; }
+#projectForm > label.field-half { grid-column: auto; }
 #projectForm label { display: block; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
 #projectForm label.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
 #projectForm label.checkbox-label input { width: auto; margin: 0; }
@@ -279,7 +283,7 @@ td a:hover { text-decoration: underline; }
 .product-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: box-shadow .25s, transform .25s, border-color .25s; }
 .product-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 24px 56px rgba(0, 0, 0, 0.45); transform: translateY(-4px); border-color: var(--border-strong); }
 
-.product-img { aspect-ratio: 1; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.product-img { position: relative; aspect-ratio: 1; background: var(--surface-2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s cubic-bezier(.2,.6,.2,1); }
 .product-card:hover .product-img img { transform: scale(1.06); }
 .product-img-placeholder { display: flex; align-items: center; justify-content: center; opacity: .25; }
@@ -1550,7 +1554,6 @@ td a:hover { text-decoration: underline; }
 .eshop-orden label { font-size: 13px; color: var(--text-dim); }
 .eshop-orden select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); font-size: 13px; font-family: inherit; cursor: pointer; }
 
-.product-img { position: relative; }
 .badge-stl-card { position: absolute; top: 10px; left: 10px; z-index: 1; padding: 4px 10px; border-radius: 999px; background: rgba(10, 10, 10, 0.72); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; backdrop-filter: blur(4px); }
 
 .badge-stl-ficha { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong, var(--border)); background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600; margin-left: 6px; }
@@ -1576,3 +1579,17 @@ td a:hover { text-decoration: underline; }
 .ventas-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .select-periodo { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: 13px; font-family: inherit; cursor: pointer; }
 .select-periodo:hover { border-color: var(--border-strong); }
+
+/* Textareas de formularios (antes eran estilos inline repetidos) */
+.field-textarea { width: 100%; padding: 10px 12px; margin-top: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); font-family: inherit; resize: vertical; transition: border-color .15s; }
+.field-textarea:focus { outline: none; border-color: var(--border-strong); }
+.field-textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Que los botones de la columna Acciones no se partan en dos líneas */
+td[data-label="Acciones"] { white-space: nowrap; }
+
+/* En pantallas chicas el form del modal vuelve a una columna */
+@media (max-width: 480px) {
+    #projectForm { grid-template-columns: 1fr; }
+    #projectForm > label.field-half { grid-column: 1 / -1; }
+}

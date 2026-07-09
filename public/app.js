@@ -8,6 +8,14 @@ if (window.location.protocol === 'file:') {
     throw new Error('Modo incorrecto - usar localhost:3000');
 }
 
+// Reemplaza los <span data-icon="nombre"> del HTML por el SVG de icons.js,
+// para no repetir el markup de cada icono en admin.html.
+document.querySelectorAll('span[data-icon]').forEach(el => {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = icon(el.dataset.icon, el.dataset.iconClass);
+    el.replaceWith(tpl.content);
+});
+
 const API_PROY = '/api/proyectos';
 const API_CAT = '/api/categorias';
 let catActual = '';
@@ -916,7 +924,6 @@ function renderDashboard() {
         if (!recent.length) {
             body.innerHTML = `<tr><td colspan="5"><div class="empty-state">${icon('inbox', 'icon-lg')}<p class="empty-state-title">Sin proyectos</p></div></td></tr>`;
         } else {
-            const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
             body.innerHTML = recent.map(p => {
                 const pv = parseFloat(p.precioventa) || 0;
                 const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
