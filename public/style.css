@@ -1593,3 +1593,28 @@ td[data-label="Acciones"] { white-space: nowrap; }
     #projectForm { grid-template-columns: 1fr; }
     #projectForm > label.field-half { grid-column: 1 / -1; }
 }
+
+/* --- Tabla de proyectos: legibilidad --- */
+
+/* El contenedor scrollea horizontal en vez de aplastar las 13 columnas */
+.tabla-scroll { overflow-x: auto; margin-top: 16px; }
+.tabla-scroll table { margin-top: 0; }
+
+@media (min-width: 769px) {
+    #tabla { min-width: 1180px; }
+    /* Padding mas compacto: con 13 columnas, 16px por lado se comia todo el ancho */
+    #tabla th, #tabla td { padding: 12px 10px; }
+    #tabla th:first-child, #tabla td:first-child { padding-left: 18px; }
+    #tabla th:last-child, #tabla td:last-child { padding-right: 18px; }
+
+    /* Nombre: la columna protagonista, con lugar y sin cortes raros */
+    #tabla td[data-label="Nombre"] { min-width: 200px; max-width: 300px; font-weight: 500; color: var(--text); line-height: 1.4; }
+    #tabla td[data-label="Código"], #tabla td[data-label="Categoría"] { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Numeros, badges y links cortos: siempre en una sola linea */
+    #tabla td[data-label="Costo"], #tabla td[data-label="Precio Vta"],
+    #tabla td[data-label="Vend."], #tabla td[data-label="Stock"],
+    #tabla td[data-label="Ganancia"], #tabla td[data-label="Estado"],
+    #tabla td[data-label="ML"], #tabla td[data-label="Eshop"],
+    #tabla td[data-label="Link Archivo"] { white-space: nowrap; }
+}
