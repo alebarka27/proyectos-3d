@@ -1109,6 +1109,67 @@ function cambiarVista(vista) {
 /* --- Calculadora de costos --- */
 
 let ultimoTotalCalculado = 0;
+let ultimoPrecioCalculadora = 0;
+let calcExtras = [];
+
+// Los valores de configuración (material, kWh, desgaste) se recuerdan entre
+// sesiones para no tener que recargarlos cada vez.
+const CALC_CONFIG_KEY = 'calc-config';
+
+function cargarConfigCalculadora() {
+    try {
+        const cfg = JSON.parse(localStorage.getItem(CALC_CONFIG_KEY) || '{}');
+        if (cfg.costoMaterial) document.getElementById('calcCostoMaterial').value = cfg.costoMaterial;
+        if (cfg.kwh) document.getElementById('calcKwh').value = cfg.kwh;
+        if (cfg.desgaste) document.getElementById('calcDesgaste').value = cfg.desgaste;
+    } catch { /* config rota: quedan los defaults del HTML */ }
+}
+
+function guardarConfigCalculadora() {
+    try {
+        localStorage.setItem(CALC_CONFIG_KEY, JSON.stringify({
+            costoMaterial: document.getElementById('calcCostoMaterial').value,
+            kwh: document.getElementById('calcKwh').value,
+            desgaste: document.getElementById('calcDesgaste').value,
+        }));
+    } catch { /* localStorage lleno o bloqueado: no pasa nada */ }
+}
+
+function agregarExtra() {
+    const nombreEl = document.getElementById('extraNombre');
+    const costoEl = document.getElementById('extraCosto');
+    const costo = parseFloat(costoEl.value);
+    if (isNaN(costo) || costo < 0) { showToast('Poné el costo del extra', 'error'); costoEl.focus(); return; }
+    calcExtras.push({ nombre: nombreEl.value.trim() || 'Extra', costo });
+    nombreEl.value = '';
+    costoEl.value = '';
+    nombreEl.focus();
+    renderExtras();
+    calcularPrecio();
+}
+
+function quitarExtra(i) {
+    calcExtras.splice(i, 1);
+    renderExtras();
+    calcularPrecio();
+}
+
+function renderExtras() {
+    document.getElementById('calcExtrasLista').innerHTML = calcExtras.map((e, i) => `
+        <div class="calc-extra-item">
+            <span class="calc-extra-nombre">${escapeHTML(e.nombre)}</span>
+            <span class="calc-extra-costo">$${formatearPrecio(e.costo)}</span>
+            <button type="button" class="btn-sm btn-peligro" title="Quitar extra" onclick="quitarExtra(${i})">${icon('trash')}</button>
+        </div>`).join('');
+}
+
+// Propone un precio a partir del costo total, redondeado a la centena
+// para que quede un número "de vidriera".
+function sugerirPrecio(mult) {
+    if (!ultimoTotalCalculado) { showToast('Cargá primero los costos (gramos, horas...)', 'error'); return; }
+    document.getElementById('calcPrecioVenta').value = Math.ceil((ultimoTotalCalculado * mult) / 100) * 100;
+    calcularPrecio();
+}
 
 function calcularPrecio() {
     const costoMaterial = parseFloat(document.getElementById('calcCostoMaterial').value) || 0;
@@ -1120,13 +1181,36 @@ function calcularPrecio() {
     const energia = (90 / 1000) * kwh * horas;
     const material = (costoMaterial / 1000) * gramos * 1.1;
     const desgaste = horas * desgastePorHora;
-    const total = energia + material + desgaste;
+    const extras = calcExtras.reduce((s, e) => s + e.costo, 0);
+    const total = energia + material + desgaste + extras;
     ultimoTotalCalculado = total;
 
-    document.getElementById('calc-energia').textContent = '$' + energia.toFixed(2);
-    document.getElementById('calc-material').textContent = '$' + material.toFixed(2);
-    document.getElementById('calc-desgaste').textContent = '$' + desgaste.toFixed(2);
-    document.getElementById('calc-total').textContent = '$' + total.toFixed(2);
+    document.getElementById('calc-energia').textContent = '$' + formatearPrecio(energia);
+    document.getElementById('calc-material').textContent = '$' + formatearPrecio(material);
+    document.getElementById('calc-desgaste').textContent = '$' + formatearPrecio(desgaste);
+    document.getElementById('calc-extras').textContent = '$' + formatearPrecio(extras);
+    document.getElementById('calc-total').textContent = '$' + formatearPrecio(total);
+
+    // Ganancia = precio elegido - costo total
+    const pv = parseFloat(document.getElementById('calcPrecioVenta').value) || 0;
+    ultimoPrecioCalculadora = pv;
+    const ganancia = pv - total;
+    const box = document.getElementById('calcGananciaBox');
+    const ganEl = document.getElementById('calc-ganancia');
+    const margenEl = document.getElementById('calc-margen');
+    if (!pv) {
+        box.className = 'calc-ganancia';
+        ganEl.textContent = '—';
+        margenEl.textContent = 'Poné un precio (o tocá una sugerencia) para ver cuánto te queda';
+    } else {
+        box.className = 'calc-ganancia ' + (ganancia > 0 ? 'ganancia-ok' : 'ganancia-mal');
+        ganEl.textContent = (ganancia < 0 ? '-$' : '$') + formatearPrecio(Math.abs(ganancia));
+        margenEl.textContent = ganancia >= 0
+            ? `Te queda el ${Math.round((ganancia / pv) * 100)}% del precio`
+            : 'Estás vendiendo a pérdida';
+    }
+
+    guardarConfigCalculadora();
 }
 
 function usarComoCosto() {
@@ -1134,11 +1218,21 @@ function usarComoCosto() {
     document.getElementById('projectForm').reset();
     document.getElementById('editId').value = '';
     document.getElementById('costo').value = ultimoTotalCalculado.toFixed(2);
+    if (ultimoPrecioCalculadora > 0) document.getElementById('precioVenta').value = ultimoPrecioCalculadora;
     const marca = document.getElementById('calcMarca').value.trim();
     if (marca) document.getElementById('nombre').value = marca;
     cambiarVista('proyectos');
     document.getElementById('formOverlay').classList.remove('hidden');
 }
+
+// Enter en los campos de extra = agregarlo (más rápido que ir al botón)
+['extraNombre', 'extraCosto'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); agregarExtra(); }
+    });
+});
+
+cargarConfigCalculadora();
 
 /* --- Formulario de ventas --- */
 

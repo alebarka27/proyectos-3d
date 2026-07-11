@@ -323,6 +323,19 @@
                         <label>Horas de impresión <input type="number" id="calcHoras" step="0.1" oninput="calcularPrecio()"></label>
                         <label>Precio kWh ($) <input type="number" id="calcKwh" step="0.01" value="160" oninput="calcularPrecio()"></label>
                         <label>Desgaste por hora ($) <input type="number" id="calcDesgaste" step="0.01" value="300" oninput="calcularPrecio()"></label>
+
+                        <div class="calc-extras">
+                            <div class="calc-extras-titulo">Extras (lámpara, kit LED, tornillos, pintura...)</div>
+                            <div id="calcExtrasLista"></div>
+                            <div class="calc-extra-add">
+                                <input type="text" id="extraNombre" placeholder="Ej: Lámpara LED">
+                                <input type="number" id="extraCosto" step="0.01" min="0" placeholder="Costo $">
+                                <button type="button" class="btn-sm" onclick="agregarExtra()">
+                                    <span data-icon="plus"></span>
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="calc-resultado">
                         <div class="stats">
@@ -338,12 +351,32 @@
                                 <span class="stat-label">Desgaste Máquina</span>
                                 <span class="stat-value" id="calc-desgaste">$0</span>
                             </div>
-                            <div class="stat-card stat-destacado">
-                                <span class="stat-label">Total</span>
+                            <div class="stat-card">
+                                <span class="stat-label">Extras</span>
+                                <span class="stat-value" id="calc-extras">$0</span>
+                            </div>
+                            <div class="stat-card stat-destacado stat-total">
+                                <span class="stat-label">Costo Total</span>
                                 <span class="stat-value" id="calc-total">$0</span>
                             </div>
                         </div>
-                        <button class="btn-primary" onclick="usarComoCosto()">Usar como costo del proyecto</button>
+
+                        <div class="calc-precio">
+                            <label>Precio de venta ($) <input type="number" id="calcPrecioVenta" step="0.01" min="0" placeholder="¿A cuánto lo vendés?" oninput="calcularPrecio()"></label>
+                            <div class="calc-precio-sugerencias">
+                                <span>Sugerir:</span>
+                                <button type="button" class="btn-sm" onclick="sugerirPrecio(2)">×2</button>
+                                <button type="button" class="btn-sm" onclick="sugerirPrecio(2.5)">×2.5</button>
+                                <button type="button" class="btn-sm" onclick="sugerirPrecio(3)">×3</button>
+                            </div>
+                            <div class="calc-ganancia" id="calcGananciaBox">
+                                <span class="calc-ganancia-label">Ganancia</span>
+                                <span class="calc-ganancia-valor" id="calc-ganancia">$0</span>
+                                <span class="calc-ganancia-margen" id="calc-margen"></span>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" onclick="usarComoCosto()">Crear proyecto con estos números</button>
                     </div>
                 </div>
             </div>
