@@ -372,6 +372,9 @@ async function initDB() {
                 notas TEXT DEFAULT ''
             );
         `;
+        // Productos del encargo: JSON [{proyectoId, nombre, cantidad, precio}].
+        // proyectoId referencia a proyectos si el item es del catalogo ('' si es libre).
+        await sql`ALTER TABLE encargos ADD COLUMN IF NOT EXISTS items TEXT DEFAULT '';`;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -772,6 +775,24 @@ app.delete('/api/ventas/:id', async (req, res) => {
 
 const ESTADOS_ENCARGO = ['Pendiente', 'En proceso', 'Entregado', 'Cancelado'];
 
+// Normaliza la lista de productos de un encargo (mezcla items del catalogo
+// con proyectoId y items libres sin el).
+function normalizarItemsEncargo(valor) {
+    let lista = valor;
+    if (typeof valor === 'string') {
+        try { lista = JSON.parse(valor); } catch { lista = []; }
+    }
+    if (!Array.isArray(lista)) lista = [];
+    return JSON.stringify(lista
+        .map(i => ({
+            proyectoId: String((i && i.proyectoId) || ''),
+            nombre: String((i && i.nombre) || '').trim(),
+            cantidad: Math.max(1, parseInt(i && i.cantidad) || 1),
+            precio: parseFloat(i && i.precio) || 0,
+        }))
+        .filter(i => i.nombre));
+}
+
 function bodyEncargo(body) {
     return {
         cliente: (body.cliente || '').trim(),
@@ -782,6 +803,7 @@ function bodyEncargo(body) {
         estado: ESTADOS_ENCARGO.includes(body.estado) ? body.estado : 'Pendiente',
         fechaEntrega: (body.fechaEntrega || '').trim(),
         notas: body.notas || '',
+        items: body.items === undefined ? null : normalizarItemsEncargo(body.items),
     };
 }
 
@@ -797,12 +819,13 @@ app.get('/api/encargos', async (req, res) => {
 app.post('/api/encargos', async (req, res) => {
     try {
         const e = bodyEncargo(req.body);
-        if (!e.detalle && !e.cliente) return res.status(400).json({ error: 'Poné al menos el cliente o qué encargó' });
+        const tieneItems = e.items && e.items !== '[]';
+        if (!e.detalle && !e.cliente && !tieneItems) return res.status(400).json({ error: 'Poné al menos el cliente, un producto o qué encargó' });
         const id = Date.now().toString();
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO encargos (id, cliente, contacto, detalle, precio, sena, estado, fecha, fecha_entrega, notas)
-            VALUES (${id}, ${e.cliente}, ${e.contacto}, ${e.detalle}, ${e.precio}, ${e.sena}, ${e.estado}, ${fecha}, ${e.fechaEntrega}, ${e.notas})
+            INSERT INTO encargos (id, cliente, contacto, detalle, precio, sena, estado, fecha, fecha_entrega, notas, items)
+            VALUES (${id}, ${e.cliente}, ${e.contacto}, ${e.detalle}, ${e.precio}, ${e.sena}, ${e.estado}, ${fecha}, ${e.fechaEntrega}, ${e.notas}, ${e.items || '[]'})
         `;
         const { rows } = await sql`SELECT * FROM encargos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -818,7 +841,8 @@ app.put('/api/encargos/:id', async (req, res) => {
             UPDATE encargos SET
                 cliente=${e.cliente}, contacto=${e.contacto}, detalle=${e.detalle},
                 precio=${e.precio}, sena=${e.sena}, estado=${e.estado},
-                fecha_entrega=${e.fechaEntrega}, notas=${e.notas}
+                fecha_entrega=${e.fechaEntrega}, notas=${e.notas},
+                items=COALESCE(${e.items}, items)
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });

@@ -1726,6 +1726,30 @@ td[data-label="Acciones"] { white-space: nowrap; }
 .enc-badge-Entregado { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.35); color: var(--success); }
 .enc-badge-Cancelado { background: var(--surface-2); color: var(--text-faint); }
 
+/* Productos del encargo (en el form y en la tarjeta) */
+.enc-items { margin-bottom: 14px; }
+.enc-item-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--hairline); font-size: 13px; }
+.enc-item-row:last-child { border-bottom: none; }
+.enc-item-desc { flex: 1; min-width: 0; color: var(--text); }
+.enc-item-monto { white-space: nowrap; color: var(--text-dim); font-size: 12.5px; }
+.enc-item-monto strong { color: var(--text); }
+.enc-item-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-faint); vertical-align: 1px; }
+.enc-item-badge .icon { width: 11px; height: 11px; }
+.enc-item-ref { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; padding: 0 2px; color: var(--info); font-size: 12px; font-family: inherit; cursor: pointer; }
+.enc-item-ref:hover { text-decoration: underline; }
+.enc-item-ref .icon { width: 12px; height: 12px; }
+
+.enc-item-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+#encargoForm .enc-item-add select, #encargoForm .enc-item-add input { width: auto; margin-top: 0; }
+#encargoForm .enc-item-add select { flex: 2; min-width: 150px; }
+#encargoForm #encItemNombre { flex: 2; min-width: 120px; }
+#encargoForm #encItemCant { flex: 0 0 62px; }
+#encargoForm #encItemPrecio { flex: 0 0 96px; }
+.enc-item-add .btn-sm { flex-shrink: 0; }
+.enc-items .muted { margin-top: 8px; }
+
+.enc-card-items { margin: 2px 0 8px; }
+
 .enc-fecha { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .enc-fecha .icon { width: 13px; height: 13px; }
 .enc-fecha-hoy { color: var(--warning); font-weight: 600; }

@@ -44,7 +44,13 @@ Cuatro tablas, creadas automáticamente al arrancar:
 - **proyectos**: id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, colores, colorfotos, archivos, filamento, colores_usados, notas_impresion, calc_desglose
 - **categorias**: nombre (PK)
 - **ventas**: id, proyectoid, proyectonombre, cantidad, precioventa, costo, ganancia, fecha
-- **encargos**: id, cliente, contacto, detalle, precio, sena, estado (Pendiente/En proceso/Entregado/Cancelado), fecha, fecha_entrega, notas
+- **encargos**: id, cliente, contacto, detalle, precio, sena, estado (Pendiente/En proceso/Entregado/Cancelado), fecha, fecha_entrega, notas, items
+
+`encargos.items` es un JSON `[{proyectoId, nombre, cantidad, precio}]`: los
+productos del encargo, que pueden referenciar proyectos del catálogo
+(`proyectoId`) o ser items libres (`proyectoId` vacío). Al entregar un encargo
+con items, el admin ofrece registrar una venta por item (con el costo real del
+proyecto si es del catálogo) y descuenta el stock.
 
 `archivos` guarda un JSON `[{nombre, url}]` con los links a los archivos de
 impresión de cada modelo (STL/3MF/gcode, normalmente en Drive). Se administran

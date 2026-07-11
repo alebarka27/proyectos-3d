@@ -1217,12 +1217,16 @@ function renderDashEncargos() {
             ${icon('box')} Encargos activos (${activos.length})
             <button class="btn-sm" onclick="cambiarVista('encargos')">Ver todos</button>
         </div>
-        ${activos.slice(0, 5).map(e => `
+        ${activos.slice(0, 5).map(e => {
+            const items = parseItemsEncargo(e);
+            const resumen = e.detalle || items.map(it => `${it.cantidad}× ${it.nombre}`).join(', ');
+            return `
             <div class="dash-encargo-item">
-                <span class="dash-encargo-nombre"><strong>${escapeHTML(e.cliente || 'Sin nombre')}</strong> — ${escapeHTML(e.detalle || '')}</span>
+                <span class="dash-encargo-nombre"><strong>${escapeHTML(e.cliente || 'Sin nombre')}</strong> — ${escapeHTML(resumen)}</span>
                 ${chipEntrega(e)}
                 ${badgeEncargo(e.estado)}
-            </div>`).join('')}`;
+            </div>`;
+        }).join('')}`;
 }
 
 /* --- Gráfico de ventas por mes (barras apiladas: costos + ganancia = ingresos) --- */
@@ -1630,6 +1634,20 @@ function renderEncargos() {
     cont.innerHTML = lista.map(e => {
         const resta = Math.max(0, (e.precio || 0) - (e.sena || 0));
         const wa = waCliente(e.contacto);
+        const items = parseItemsEncargo(e);
+        const itemsHTML = items.length ? `
+            <div class="enc-card-items">
+                ${items.map(it => {
+                    const p = it.proyectoId ? todosProyectos.find(x => x.id === it.proyectoId) : null;
+                    return `
+                    <div class="enc-item-row">
+                        <span class="enc-item-desc">${it.cantidad}× ${escapeHTML(it.nombre)}
+                            ${p ? `<button type="button" class="enc-item-ref" title="Ver el proyecto" onclick="abrirDetalle('${p.id}')">${icon('link-external')} ver</button>` : ''}
+                        </span>
+                        <span class="enc-item-monto">$${formatearPrecio(it.precio * it.cantidad)}</span>
+                    </div>`;
+                }).join('')}
+            </div>` : '';
         return `
             <div class="enc-card ${esEncargoActivo(e) ? '' : 'enc-card-cerrado'}">
                 <div class="enc-card-top">
@@ -1639,7 +1657,8 @@ function renderEncargos() {
                     </div>
                     ${chipEntrega(e)}
                 </div>
-                <div class="enc-card-detalle">${escapeHTML(e.detalle || '-')}</div>
+                ${itemsHTML}
+                ${e.detalle ? `<div class="enc-card-detalle">${escapeHTML(e.detalle)}</div>` : (items.length ? '' : '<div class="enc-card-detalle">-</div>')}
                 ${e.notas ? `<div class="enc-card-notas">${escapeHTML(e.notas)}</div>` : ''}
                 <div class="enc-card-monto">
                     ${e.precio ? `<span>Total <strong>$${formatearPrecio(e.precio)}</strong></span>` : ''}
@@ -1659,11 +1678,81 @@ function renderEncargos() {
     }).join('');
 }
 
+/* Productos del encargo: mezcla items del catálogo (con proyectoId) e items
+   libres. Se editan en memoria (encItems) y se guardan como JSON. */
+
+let encItems = [];
+
+function parseItemsEncargo(e) {
+    try {
+        const lista = JSON.parse(e.items || '[]');
+        return Array.isArray(lista) ? lista.filter(i => i && i.nombre) : [];
+    } catch { return []; }
+}
+
+function poblarSelectItemEncargo() {
+    const sel = document.getElementById('encItemProyecto');
+    const orden = [...todosProyectos].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    sel.innerHTML = '<option value="">Otro (fuera del catálogo)</option>' +
+        orden.map(p => `<option value="${p.id}" data-precio="${parseFloat(p.precioventa) || 0}">${escapeHTML(p.nombre)}${p.codigo ? ` (${escapeHTML(p.codigo)})` : ''}</option>`).join('');
+    encItemProyectoChange();
+}
+
+// Al elegir un producto del catálogo se precarga su precio y no hace falta nombre
+function encItemProyectoChange() {
+    const sel = document.getElementById('encItemProyecto');
+    const esCatalogo = !!sel.value;
+    document.getElementById('encItemNombre').classList.toggle('hidden', esCatalogo);
+    if (esCatalogo) {
+        const precio = parseFloat(sel.options[sel.selectedIndex].dataset.precio) || 0;
+        if (precio) document.getElementById('encItemPrecio').value = precio;
+    }
+}
+
+function agregarItemEncargo() {
+    const sel = document.getElementById('encItemProyecto');
+    const proyectoId = sel.value;
+    const p = proyectoId ? todosProyectos.find(x => x.id === proyectoId) : null;
+    const nombre = p ? p.nombre : document.getElementById('encItemNombre').value.trim();
+    if (!nombre) { showToast('Elegí un producto o escribí qué es', 'error'); return; }
+    const cantidad = Math.max(1, parseInt(document.getElementById('encItemCant').value) || 1);
+    const precio = parseFloat(document.getElementById('encItemPrecio').value) || 0;
+    encItems.push({ proyectoId: proyectoId || '', nombre, cantidad, precio });
+    sel.value = '';
+    document.getElementById('encItemNombre').value = '';
+    document.getElementById('encItemCant').value = '1';
+    document.getElementById('encItemPrecio').value = '';
+    encItemProyectoChange();
+    renderItemsEncargo();
+}
+
+function quitarItemEncargo(i) {
+    encItems.splice(i, 1);
+    renderItemsEncargo();
+}
+
+function renderItemsEncargo() {
+    document.getElementById('encItemsLista').innerHTML = encItems.map((it, i) => `
+        <div class="enc-item-row">
+            <span class="enc-item-desc">${it.cantidad}× ${escapeHTML(it.nombre)}${it.proyectoId ? ` <span class="enc-item-badge">${icon('clipboard')} catálogo</span>` : ''}</span>
+            <span class="enc-item-monto">$${formatearPrecio(it.precio)} c/u${it.cantidad > 1 ? ` = <strong>$${formatearPrecio(it.precio * it.cantidad)}</strong>` : ''}</span>
+            <button type="button" class="btn-sm btn-peligro" title="Quitar" onclick="quitarItemEncargo(${i})">${icon('trash')}</button>
+        </div>`).join('');
+    // El precio total se recalcula desde los items (se puede pisar a mano después)
+    if (encItems.length) {
+        document.getElementById('encPrecio').value = encItems.reduce((s, it) => s + it.precio * it.cantidad, 0);
+    }
+}
+
 function mostrarFormEncargo() {
     document.getElementById('encargoFormTitle').textContent = 'Nuevo Encargo';
     document.getElementById('encargoForm').reset();
     document.getElementById('encargoEditId').value = '';
     document.getElementById('encEstado').value = 'Pendiente';
+    document.getElementById('encItemCant').value = '1';
+    encItems = [];
+    poblarSelectItemEncargo();
+    renderItemsEncargo();
     document.getElementById('encargoOverlay').classList.remove('hidden');
 }
 
@@ -1680,6 +1769,11 @@ function editarEncargo(id) {
     document.getElementById('encFechaEntrega').value = e.fecha_entrega || '';
     document.getElementById('encEstado').value = ESTADOS_ENCARGO.includes(e.estado) ? e.estado : 'Pendiente';
     document.getElementById('encNotas').value = e.notas || '';
+    encItems = parseItemsEncargo(e);
+    poblarSelectItemEncargo();
+    renderItemsEncargo();
+    // renderItemsEncargo pisa el total con la suma de items; restaurar el guardado
+    document.getElementById('encPrecio').value = e.precio || '';
     document.getElementById('encargoOverlay').classList.remove('hidden');
 }
 
@@ -1699,6 +1793,7 @@ document.getElementById('encargoForm').onsubmit = async (ev) => {
         fechaEntrega: document.getElementById('encFechaEntrega').value,
         estado: document.getElementById('encEstado').value,
         notas: document.getElementById('encNotas').value,
+        items: encItems,
     };
     const res = await apiFetch(id ? `${API_ENC}/${id}` : API_ENC, {
         method: id ? 'PUT' : 'POST',
@@ -1718,6 +1813,13 @@ document.getElementById('encargoForm').onsubmit = async (ev) => {
     showToast('Encargo guardado', 'success');
 };
 
+// Enter en los campos de producto agrega el item (sin mandar el form entero)
+['encItemNombre', 'encItemCant', 'encItemPrecio'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); agregarItemEncargo(); }
+    });
+});
+
 async function cambiarEstadoEncargo(id, estado) {
     const res = await apiFetch(`${API_ENC}/${id}/estado`, {
         method: 'PATCH',
@@ -1732,35 +1834,73 @@ async function cambiarEstadoEncargo(id, estado) {
     return actualizado;
 }
 
-// Entregar = marcar Entregado y, si tiene precio, ofrecer registrar la venta
+// Entregar = marcar Entregado y ofrecer registrar las ventas. Si el encargo
+// tiene productos del catálogo, cada venta lleva el costo real del proyecto
+// y se descuenta el stock; los items libres van con costo 0.
 async function entregarEncargo(id) {
     const e = todosEncargos.find(x => x.id === id);
     if (!e) return;
     if (!(await showConfirm(`¿Marcar como entregado el encargo de "${e.cliente || 'cliente'}"?`, { title: 'Entregar encargo', confirmLabel: 'Entregar' }))) return;
     const actualizado = await cambiarEstadoEncargo(id, 'Entregado');
     if (!actualizado) return;
-    if ((e.precio || 0) > 0) {
+
+    const items = parseItemsEncargo(e);
+
+    // Encargo sin productos cargados: venta única por el precio total
+    if (!items.length) {
+        if ((e.precio || 0) <= 0) { showToast('Encargo entregado', 'success'); return; }
         const registrar = await showConfirm(
             `¿Registrar también la venta por $${formatearPrecio(e.precio)}? (el costo queda en 0, lo podés editar después en Ventas)`,
             { title: 'Registrar venta', confirmLabel: 'Registrar venta', cancelLabel: 'No, solo entregar' }
         );
-        if (registrar) {
-            await apiFetch(API_VTA, {
-                method: 'POST',
+        if (!registrar) { showToast('Encargo entregado', 'success'); return; }
+        await apiFetch(API_VTA, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                proyectoNombre: `Encargo: ${e.detalle || ''}${e.cliente ? ` (${e.cliente})` : ''}`.slice(0, 120),
+                cantidad: 1,
+                precioVenta: e.precio,
+                costo: 0,
+            }),
+        });
+        await cargarVentas();
+        showToast('Encargo entregado y venta registrada', 'success');
+        return;
+    }
+
+    const delCatalogo = items.filter(it => it.proyectoId && todosProyectos.some(p => p.id === it.proyectoId));
+    const registrar = await showConfirm(
+        `¿Registrar la venta de ${items.length === 1 ? 'su producto' : `sus ${items.length} productos`}?` +
+        (delCatalogo.length ? ` A los del catálogo se les descuenta el stock y llevan su costo real.` : ''),
+        { title: 'Registrar ventas', confirmLabel: 'Registrar', cancelLabel: 'No, solo entregar' }
+    );
+    if (!registrar) { showToast('Encargo entregado', 'success'); return; }
+
+    for (const it of items) {
+        const p = it.proyectoId ? todosProyectos.find(x => x.id === it.proyectoId) : null;
+        await apiFetch(API_VTA, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                proyectoId: p ? p.id : '',
+                proyectoNombre: p ? p.nombre : `Encargo: ${it.nombre}${e.cliente ? ` (${e.cliente})` : ''}`.slice(0, 120),
+                cantidad: it.cantidad,
+                precioVenta: it.precio,
+                costo: p ? (parseFloat(p.costo) || 0) : 0,
+            }),
+        });
+        if (p) {
+            const stock = Math.max(0, (parseInt(p.cantidad) || 0) - it.cantidad);
+            await apiFetch(`${API_PROY}/${p.id}`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    proyectoNombre: `Encargo: ${e.detalle || ''}${e.cliente ? ` (${e.cliente})` : ''}`.slice(0, 120),
-                    cantidad: 1,
-                    precioVenta: e.precio,
-                    costo: 0,
-                }),
+                body: JSON.stringify({ ...bodyDesdeProyecto(p), cantidad: stock }),
             });
-            await cargarVentas();
-            showToast('Encargo entregado y venta registrada', 'success');
-            return;
         }
     }
-    showToast('Encargo entregado', 'success');
+    showToast(`Encargo entregado: ${items.length} venta${items.length !== 1 ? 's' : ''} registrada${items.length !== 1 ? 's' : ''}`, 'success');
+    cargar();
 }
 
 async function eliminarEncargo(id) {

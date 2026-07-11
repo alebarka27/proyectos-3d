@@ -308,7 +308,19 @@
                         <input type="hidden" id="encargoEditId">
                         <label class="field-half">Cliente <input type="text" id="encCliente" placeholder="Nombre del cliente"></label>
                         <label class="field-half">WhatsApp / contacto <input type="text" id="encContacto" placeholder="Ej: 11 2719 2970"></label>
-                        <label>¿Qué encargó? <textarea id="encDetalle" rows="2" class="field-textarea" required placeholder="Ej: 2 lámparas luna de 15cm con base de madera"></textarea></label>
+                        <div class="enc-items">
+                            <div class="calc-extras-titulo">Productos del encargo</div>
+                            <div id="encItemsLista"></div>
+                            <div class="enc-item-add">
+                                <select id="encItemProyecto" onchange="encItemProyectoChange()" title="Elegí un producto del catálogo, o «Otro» para algo fuera de él"></select>
+                                <input type="text" id="encItemNombre" placeholder="¿Qué es?">
+                                <input type="number" id="encItemCant" value="1" min="1" step="1" title="Cantidad">
+                                <input type="number" id="encItemPrecio" step="0.01" min="0" placeholder="$ c/u" title="Precio por unidad">
+                                <button type="button" class="btn-sm" onclick="agregarItemEncargo()"><span data-icon="plus"></span> Agregar</button>
+                            </div>
+                            <p class="muted">Elegí del catálogo (el precio se carga solo) o dejá «Otro» y escribí qué es. El total de abajo se suma automáticamente.</p>
+                        </div>
+                        <label>Detalles del pedido <textarea id="encDetalle" rows="2" class="field-textarea" placeholder="Ej: la lámpara en color cian, con base de madera"></textarea></label>
                         <label class="field-half">Precio total ($) <input type="number" id="encPrecio" step="0.01" min="0"></label>
                         <label class="field-half">Seña ($) <input type="number" id="encSena" step="0.01" min="0" placeholder="Lo que ya pagó"></label>
                         <label class="field-half">Fecha de entrega <input type="date" id="encFechaEntrega"></label>
