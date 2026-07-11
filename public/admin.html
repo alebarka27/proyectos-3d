@@ -66,6 +66,10 @@
                         <span data-icon="clipboard"></span>
                         Proyectos
                     </button>
+                    <button class="tab tab-auth" onclick="cambiarVista('encargos')">
+                        <span data-icon="box"></span>
+                        Encargos
+                    </button>
                     <button class="tab tab-auth" onclick="cambiarVista('ventas')">
                         <span data-icon="wallet"></span>
                         Ventas
@@ -100,6 +104,9 @@
                         <label class="checkbox-label"><input type="checkbox" id="destacadoCheck"> Destacar en la página principal (Más vendidos)</label>
                         <label>Fotos (URLs, separadas por comas) <input type="text" id="fotos" placeholder="https://..., https://..."></label>
                         <label>Descripción <textarea id="descripcion" rows="3" class="field-textarea" placeholder="Materiales, medidas, colores disponibles..."></textarea></label>
+                        <label class="field-half">Marca de filamento <input type="text" id="filamento" placeholder="Ej: PLA Grilon3"></label>
+                        <label class="field-half">Colores usados <input type="text" id="coloresUsados" placeholder="Ej: Negro, Rojo (separados por coma)"></label>
+                        <label>Detalles de impresión (solo para vos) <textarea id="notasImpresion" rows="2" class="field-textarea" placeholder="Temperatura, soportes, altura de capa, orientación en la cama..."></textarea></label>
                         <label>Estado
                             <select id="estado">
                                 <option>Planificado</option>
@@ -174,7 +181,19 @@
 
             <div id="vistaDashboard" class="hidden">
                 <div class="dashboard-grid" id="dashCards"></div>
+                <div id="dashEncargos" class="dash-encargos hidden"></div>
                 <div id="dashAlertas" class="dash-alertas hidden"></div>
+
+                <div id="dashChartCard" class="dash-chart-card hidden">
+                    <div class="dash-chart-header">
+                        <h3 class="dash-section-title">Ventas por mes</h3>
+                        <div class="dash-chart-legend">
+                            <span class="dash-legend-chip"><span class="dash-legend-dot" style="background:#16a34a"></span>Ganancia</span>
+                            <span class="dash-legend-chip"><span class="dash-legend-dot" style="background:#3b82f6"></span>Costos</span>
+                        </div>
+                    </div>
+                    <div id="dashChart" class="dash-chart"></div>
+                </div>
 
                 <h3 class="dash-section-title">Acciones rápidas</h3>
                 <div class="dash-actions">
@@ -227,10 +246,12 @@
                     </div>
                     <span class="proy-count" id="proyCount"></span>
                     <div class="proy-toolbar-right">
+                        <button id="btnModoProyectos" class="btn-sm" onclick="toggleModoProyectos()" title="Ver los proyectos como cola de impresión por estado">Cola de impresión</button>
                         <button class="btn-sm" onclick="abrirCargaMasiva()">Carga masiva</button>
                         <button class="btn-sm" onclick="exportarProyectosCSV()" title="Descargar lo que se ve en la tabla como CSV">Exportar CSV</button>
                     </div>
                 </div>
+                <div id="colaImpresion" class="cola-grid hidden"></div>
                 <div class="tabla-scroll">
                 <table id="tabla">
                     <thead>
@@ -252,6 +273,59 @@
                     </thead>
                     <tbody id="tbody"></tbody>
                 </table>
+                </div>
+            </div>
+
+            <div id="vistaEncargos" class="hidden">
+                <div class="top-bar">
+                    <h2 class="view-heading">
+                        <span data-icon="box"></span>
+                        Encargos
+                    </h2>
+                    <div class="ventas-toolbar">
+                        <select id="encargoFiltro" class="select-periodo" onchange="renderEncargos()" title="Filtrar encargos por estado">
+                            <option value="activos">Activos</option>
+                            <option value="Pendiente">Pendientes</option>
+                            <option value="En proceso">En proceso</option>
+                            <option value="Entregado">Entregados</option>
+                            <option value="Cancelado">Cancelados</option>
+                            <option value="todos">Todos</option>
+                        </select>
+                        <button class="btn-primary" onclick="mostrarFormEncargo()">
+                            <span data-icon="plus"></span>
+                            Nuevo Encargo
+                        </button>
+                    </div>
+                </div>
+                <div class="stats" id="encargoStats"></div>
+                <div id="listaEncargos" class="encargos-lista"></div>
+            </div>
+
+            <div id="encargoOverlay" class="overlay hidden">
+                <div class="modal">
+                    <h2 id="encargoFormTitle">Nuevo Encargo</h2>
+                    <form id="encargoForm">
+                        <input type="hidden" id="encargoEditId">
+                        <label class="field-half">Cliente <input type="text" id="encCliente" placeholder="Nombre del cliente"></label>
+                        <label class="field-half">WhatsApp / contacto <input type="text" id="encContacto" placeholder="Ej: 11 2719 2970"></label>
+                        <label>¿Qué encargó? <textarea id="encDetalle" rows="2" class="field-textarea" required placeholder="Ej: 2 lámparas luna de 15cm con base de madera"></textarea></label>
+                        <label class="field-half">Precio total ($) <input type="number" id="encPrecio" step="0.01" min="0"></label>
+                        <label class="field-half">Seña ($) <input type="number" id="encSena" step="0.01" min="0" placeholder="Lo que ya pagó"></label>
+                        <label class="field-half">Fecha de entrega <input type="date" id="encFechaEntrega"></label>
+                        <label class="field-half">Estado
+                            <select id="encEstado">
+                                <option>Pendiente</option>
+                                <option>En proceso</option>
+                                <option>Entregado</option>
+                                <option>Cancelado</option>
+                            </select>
+                        </label>
+                        <label>Notas <textarea id="encNotas" rows="2" class="field-textarea" placeholder="Color elegido, dirección, cómo paga el resto..."></textarea></label>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Guardar</button>
+                            <button type="button" class="btn-secondary" onclick="cerrarFormEncargo()">Cancelar</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -377,6 +451,11 @@
                         </div>
 
                         <button class="btn-primary" onclick="usarComoCosto()">Crear proyecto con estos números</button>
+
+                        <div class="calc-recalc">
+                            <p class="muted">¿Subió el filamento? Los proyectos creados desde la calculadora guardan su desglose (gramos, horas, extras): con los valores de arriba podés actualizar el costo de todos de una.</p>
+                            <button type="button" class="btn-secondary" onclick="recalcularCostos()">Recalcular costos guardados</button>
+                        </div>
                     </div>
                 </div>
             </div>

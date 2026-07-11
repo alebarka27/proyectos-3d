@@ -350,6 +350,28 @@ async function initDB() {
         // Archivos para imprimir cada modelo: JSON [{nombre, url}] por proyecto
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS archivos TEXT DEFAULT '';`;
         await migrarArchivos();
+        // Ficha de impresion (organizador): filamento, colores usados y notas privadas
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS filamento TEXT DEFAULT '';`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colores_usados TEXT DEFAULT '';`;
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS notas_impresion TEXT DEFAULT '';`;
+        // Desglose de la calculadora (JSON {gramos, horas, extras}) para poder
+        // recalcular el costo cuando cambia el precio del filamento
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS calc_desglose TEXT DEFAULT '';`;
+        // Encargos: pedidos de clientes (WhatsApp, conocidos) con seña y fecha de entrega
+        await sql`
+            CREATE TABLE IF NOT EXISTS encargos (
+                id TEXT PRIMARY KEY,
+                cliente TEXT DEFAULT '',
+                contacto TEXT DEFAULT '',
+                detalle TEXT DEFAULT '',
+                precio REAL DEFAULT 0,
+                sena REAL DEFAULT 0,
+                estado TEXT DEFAULT 'Pendiente',
+                fecha TEXT DEFAULT '',
+                fecha_entrega TEXT DEFAULT '',
+                notas TEXT DEFAULT ''
+            );
+        `;
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -455,13 +477,14 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos } = req.body;
+        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos, filamento, coloresUsados, notasImpresion, calcDesglose } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, filamento, colores_usados, notas_impresion, calc_desglose)
             VALUES (${id}, ${(nombre || '').trim()}, ${(codigo || '').trim()}, ${(categoria || '').trim()},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
-                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${normalizarArchivos(archivos)})
+                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${normalizarArchivos(archivos)},
+                    ${(filamento || '').trim()}, ${(coloresUsados || '').trim()}, ${notasImpresion || ''}, ${calcDesglose || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -479,10 +502,11 @@ app.post('/api/proyectos/:id/duplicar', async (req, res) => {
         const id = Date.now().toString();
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, colores, colorfotos)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, colores, colorfotos, filamento, colores_usados, notas_impresion, calc_desglose)
             VALUES (${id}, ${(o.nombre || '') + ' (copia)'}, ${o.codigo || ''}, ${o.categoria || ''},
                     ${o.costo || 0}, ${o.precioventa || 0}, 0, ${o.fotos || ''}, ${o.estado || 'Planificado'}, ${fecha},
-                    false, ${o.cantidad || 0}, '', ${o.descripcion || ''}, false, ${o.archivos || ''}, ${o.colores || ''}, ${o.colorfotos || ''})
+                    false, ${o.cantidad || 0}, '', ${o.descripcion || ''}, false, ${o.archivos || ''}, ${o.colores || ''}, ${o.colorfotos || ''},
+                    ${o.filamento || ''}, ${o.colores_usados || ''}, ${o.notas_impresion || ''}, ${o.calc_desglose || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -518,9 +542,11 @@ app.post('/api/proyectos/bulk', async (req, res) => {
 
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos } = req.body;
-        // Si el body no trae `archivos`, se conserva la lista guardada (COALESCE con null)
+        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos, filamento, coloresUsados, notasImpresion, calcDesglose } = req.body;
+        // Campos que el body puede no traer: si vienen undefined se conserva
+        // lo guardado (COALESCE con null)
         const archivosNuevos = archivos === undefined ? null : normalizarArchivos(archivos);
+        const keep = v => v === undefined ? null : String(v);
         const { rowCount } = await sql`
             UPDATE proyectos SET
                 nombre=${(nombre || '').trim()}, codigo=${(codigo || '').trim()}, categoria=${(categoria || '').trim()},
@@ -529,7 +555,11 @@ app.put('/api/proyectos/:id', async (req, res) => {
                 fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
                 cantidad=${parseInt(cantidad) || 0}, ml_id=${mlId || ''},
                 descripcion=${descripcion || ''}, destacado=${!!destacado},
-                archivos=COALESCE(${archivosNuevos}, archivos)
+                archivos=COALESCE(${archivosNuevos}, archivos),
+                filamento=COALESCE(${keep(filamento)}, filamento),
+                colores_usados=COALESCE(${keep(coloresUsados)}, colores_usados),
+                notas_impresion=COALESCE(${keep(notasImpresion)}, notas_impresion),
+                calc_desglose=COALESCE(${keep(calcDesglose)}, calc_desglose)
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -733,6 +763,122 @@ app.delete('/api/ventas/:id', async (req, res) => {
     try {
         await sql`DELETE FROM ventas WHERE id = ${req.params.id}`;
         res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* ---- Encargos (pedidos de clientes con seña y fecha de entrega) ---- */
+
+const ESTADOS_ENCARGO = ['Pendiente', 'En proceso', 'Entregado', 'Cancelado'];
+
+function bodyEncargo(body) {
+    return {
+        cliente: (body.cliente || '').trim(),
+        contacto: (body.contacto || '').trim(),
+        detalle: (body.detalle || '').trim(),
+        precio: parseFloat(body.precio) || 0,
+        sena: parseFloat(body.sena) || 0,
+        estado: ESTADOS_ENCARGO.includes(body.estado) ? body.estado : 'Pendiente',
+        fechaEntrega: (body.fechaEntrega || '').trim(),
+        notas: body.notas || '',
+    };
+}
+
+app.get('/api/encargos', async (req, res) => {
+    try {
+        const { rows } = await sql`SELECT * FROM encargos ORDER BY fecha DESC`;
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/encargos', async (req, res) => {
+    try {
+        const e = bodyEncargo(req.body);
+        if (!e.detalle && !e.cliente) return res.status(400).json({ error: 'Poné al menos el cliente o qué encargó' });
+        const id = Date.now().toString();
+        const fecha = new Date().toISOString().split('T')[0];
+        await sql`
+            INSERT INTO encargos (id, cliente, contacto, detalle, precio, sena, estado, fecha, fecha_entrega, notas)
+            VALUES (${id}, ${e.cliente}, ${e.contacto}, ${e.detalle}, ${e.precio}, ${e.sena}, ${e.estado}, ${fecha}, ${e.fechaEntrega}, ${e.notas})
+        `;
+        const { rows } = await sql`SELECT * FROM encargos WHERE id = ${id}`;
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/encargos/:id', async (req, res) => {
+    try {
+        const e = bodyEncargo(req.body);
+        const { rowCount } = await sql`
+            UPDATE encargos SET
+                cliente=${e.cliente}, contacto=${e.contacto}, detalle=${e.detalle},
+                precio=${e.precio}, sena=${e.sena}, estado=${e.estado},
+                fecha_entrega=${e.fechaEntrega}, notas=${e.notas}
+            WHERE id=${req.params.id}
+        `;
+        if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
+        const { rows } = await sql`SELECT * FROM encargos WHERE id = ${req.params.id}`;
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Cambio rapido de estado (avanzar Pendiente -> En proceso -> Entregado, etc.)
+app.patch('/api/encargos/:id/estado', async (req, res) => {
+    try {
+        const estado = req.body.estado;
+        if (!ESTADOS_ENCARGO.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
+        const { rowCount } = await sql`UPDATE encargos SET estado=${estado} WHERE id=${req.params.id}`;
+        if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
+        const { rows } = await sql`SELECT * FROM encargos WHERE id = ${req.params.id}`;
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/encargos/:id', async (req, res) => {
+    try {
+        await sql`DELETE FROM encargos WHERE id = ${req.params.id}`;
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/* ---- Recalculo de costos ----
+   Los proyectos creados desde la calculadora guardan su desglose (gramos,
+   horas, extras) en calc_desglose. Con los precios actuales (material $/kg,
+   kWh, desgaste/hora) se recalcula el costo de todos de una. */
+
+app.post('/api/proyectos/recalcular-costos', async (req, res) => {
+    try {
+        const costoKg = parseFloat(req.body.costoMaterialKg);
+        const kwh = parseFloat(req.body.kwh) || 0;
+        const desgasteHora = parseFloat(req.body.desgasteHora) || 0;
+        if (isNaN(costoKg) || costoKg < 0) return res.status(400).json({ error: 'Costo del material inválido' });
+
+        const { rows } = await sql`SELECT id, nombre, costo, calc_desglose FROM proyectos WHERE calc_desglose != '' AND calc_desglose IS NOT NULL`;
+        const cambios = [];
+        for (const p of rows) {
+            let d;
+            try { d = JSON.parse(p.calc_desglose); } catch { continue; }
+            const gramos = parseFloat(d.gramos) || 0;
+            const horas = parseFloat(d.horas) || 0;
+            const extras = (Array.isArray(d.extras) ? d.extras : []).reduce((s, e) => s + (parseFloat(e && e.costo) || 0), 0);
+            // Misma formula que la calculadora del panel
+            const nuevo = Math.round(((90 / 1000) * kwh * horas + (costoKg / 1000) * gramos * 1.1 + horas * desgasteHora + extras) * 100) / 100;
+            if (Math.abs(nuevo - (p.costo || 0)) < 0.01) continue;
+            await sql`UPDATE proyectos SET costo=${nuevo} WHERE id=${p.id}`;
+            cambios.push({ id: p.id, nombre: p.nombre, antes: p.costo || 0, ahora: nuevo });
+        }
+        res.json({ ok: true, conDesglose: rows.length, actualizados: cambios.length, cambios });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

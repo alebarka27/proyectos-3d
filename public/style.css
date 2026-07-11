@@ -165,15 +165,15 @@ h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 .modal h2 { margin-bottom: 20px; font-size: 17px; font-weight: 600; letter-spacing: .2px; }
 
 #formOverlay .modal { max-width: 560px; }
-#projectForm { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
-#projectForm > * { grid-column: 1 / -1; min-width: 0; }
-#projectForm > label.field-half { grid-column: auto; }
-#projectForm label { display: block; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+#projectForm, #encargoForm { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+#projectForm > *, #encargoForm > * { grid-column: 1 / -1; min-width: 0; }
+#projectForm > label.field-half, #encargoForm > label.field-half { grid-column: auto; }
+#projectForm label, #encargoForm label { display: block; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
 #projectForm label.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
 #projectForm label.checkbox-label input { width: auto; margin: 0; }
-#projectForm input, #projectForm select { width: 100%; padding: 10px 12px; margin-top: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); transition: border-color .15s; }
-#projectForm input:focus, #projectForm select:focus { outline: none; border-color: var(--border-strong); }
-#projectForm input:focus-visible, #projectForm select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#projectForm input, #projectForm select, #encargoForm input, #encargoForm select { width: 100%; padding: 10px 12px; margin-top: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); transition: border-color .15s; }
+#projectForm input:focus, #projectForm select:focus, #encargoForm input:focus, #encargoForm select:focus { outline: none; border-color: var(--border-strong); }
+#projectForm input:focus-visible, #projectForm select:focus-visible, #encargoForm input:focus-visible, #encargoForm select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .form-actions { display: flex; gap: 10px; margin-top: 20px; }
 
 .cat-badge { background: rgba(255, 255, 255, 0.06); color: var(--text-dim); padding: 3px 10px; border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 500; border: 1px solid var(--border); }
@@ -1576,10 +1576,10 @@ td a:hover { text-decoration: underline; }
 /* Que los botones de la columna Acciones no se partan en dos líneas */
 td[data-label="Acciones"] { white-space: nowrap; }
 
-/* En pantallas chicas el form del modal vuelve a una columna */
+/* En pantallas chicas los forms de modal vuelven a una columna */
 @media (max-width: 480px) {
-    #projectForm { grid-template-columns: 1fr; }
-    #projectForm > label.field-half { grid-column: 1 / -1; }
+    #projectForm, #encargoForm { grid-template-columns: 1fr; }
+    #projectForm > label.field-half, #encargoForm > label.field-half { grid-column: 1 / -1; }
 }
 
 /* --- Tabla de proyectos: legibilidad --- */
@@ -1691,3 +1691,98 @@ td[data-label="Acciones"] { white-space: nowrap; }
 .ganancia-ok .calc-ganancia-valor { color: var(--success); }
 .ganancia-mal { border: 1px solid rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.07); }
 .ganancia-mal .calc-ganancia-valor { color: var(--danger); }
+
+.calc-recalc { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--hairline); }
+.calc-recalc .btn-secondary { width: 100%; margin-top: 8px; }
+
+/* --- Ficha de impresión en el detalle de proyecto --- */
+
+.det-ficha { padding: 18px 26px; border-top: 1px solid var(--hairline); }
+.det-ficha h3 { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.det-ficha h3 .icon { width: 16px; height: 16px; }
+.det-ficha .det-desc { margin-top: 14px; }
+.ficha-colores-txt { font-size: 12.5px; color: var(--text-dim); }
+.det-ficha .color-swatches { display: inline-flex; margin-right: 8px; vertical-align: middle; }
+
+/* --- Encargos --- */
+
+.encargos-lista { display: flex; flex-direction: column; gap: 14px; }
+.enc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 20px; }
+.enc-card-cerrado { opacity: .6; }
+.enc-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.enc-card-cliente { display: flex; align-items: center; gap: 10px; font-size: 14.5px; }
+.enc-card-detalle { font-size: 13.5px; color: var(--text); line-height: 1.5; }
+.enc-card-notas { font-size: 12.5px; color: var(--text-dim); margin-top: 4px; line-height: 1.5; }
+.enc-card-monto { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
+.enc-card-monto strong { color: var(--text); }
+.enc-card-monto .text-verde strong, .enc-card-monto .text-verde { color: var(--success); }
+.enc-card-monto .text-rojo strong { color: var(--danger); }
+.enc-card-acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.enc-card-acciones a.btn-sm { text-decoration: none; }
+
+.enc-badge { font-size: 11px; line-height: 1; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); font-weight: 600; white-space: nowrap; }
+.enc-badge-Pendiente { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.35); color: var(--warning); }
+.enc-badge-En-proceso { background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.35); color: var(--info); }
+.enc-badge-Entregado { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.35); color: var(--success); }
+.enc-badge-Cancelado { background: var(--surface-2); color: var(--text-faint); }
+
+.enc-fecha { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.enc-fecha .icon { width: 13px; height: 13px; }
+.enc-fecha-hoy { color: var(--warning); font-weight: 600; }
+.enc-fecha-vencida { color: var(--danger); font-weight: 600; }
+
+/* Widget de encargos en el dashboard */
+.dash-encargos { background: var(--surface); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: var(--radius-md); padding: 16px 20px; margin-top: 20px; }
+.dash-encargos-header { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--info); margin-bottom: 10px; }
+.dash-encargos-header .icon { width: 16px; height: 16px; }
+.dash-encargos-header .btn-sm { margin-left: auto; }
+.dash-encargo-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 13.5px; }
+.dash-encargo-item:last-child { border-bottom: none; padding-bottom: 0; }
+.dash-encargo-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+.dash-encargo-nombre strong { color: var(--text); }
+
+/* --- Cola de impresión (tablero por estado) --- */
+
+.cola-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+.cola-col { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; min-height: 120px; }
+.cola-col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cola-card { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: 8px; cursor: pointer; transition: border-color .15s; }
+.cola-card:hover { border-color: var(--border-strong); }
+.cola-card img { width: 42px; height: 42px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.cola-card-ph { width: 42px; height: 42px; border-radius: 6px; background: var(--bg); display: flex; align-items: center; justify-content: center; color: var(--text-faint); flex-shrink: 0; }
+.cola-card-ph .icon { width: 18px; height: 18px; }
+.cola-card-info { flex: 1; min-width: 0; }
+.cola-card-nombre { font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cola-card-sub { font-size: 11.5px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.cola-card-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.cola-vacia { font-size: 12.5px; color: var(--text-faint); text-align: center; padding: 16px 0; }
+
+@media (max-width: 768px) {
+    .cola-grid { grid-template-columns: 1fr; }
+}
+
+/* --- Gráfico de ventas por mes (dashboard) --- */
+
+.dash-chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 22px; margin-top: 24px; }
+.dash-chart-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dash-chart-header .dash-section-title { margin: 0; }
+.dash-chart-legend { display: flex; gap: 14px; }
+.dash-legend-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+.dash-legend-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+
+.dash-chart { display: flex; align-items: flex-end; gap: 14px; margin-top: 30px; }
+.dash-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; max-width: 90px; outline: none; }
+.dash-bar-stack { display: flex; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 48px; }
+.dash-bar-seg { width: 100%; min-height: 3px; }
+/* Ganancia arriba (punta redondeada), costos abajo anclados a la base; 2px de aire entre segmentos */
+.dash-bar-gan { background: #16a34a; border-radius: 4px 4px 0 0; margin-bottom: 2px; }
+.dash-bar-cos { background: #3b82f6; border-radius: 0; }
+.dash-bar-stack:has(.dash-bar-cos:only-child) .dash-bar-cos,
+.dash-bar-cos:first-child { border-radius: 4px 4px 0 0; }
+.dash-bar-label { font-size: 11.5px; color: var(--text-faint); text-transform: capitalize; }
+.dash-bar-total { font-size: 11.5px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+
+.dash-bar-tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 10px 12px; display: none; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); white-space: nowrap; z-index: 5; box-shadow: var(--shadow); }
+.dash-bar-tip strong { color: var(--text); font-size: 12.5px; }
+.dash-bar-tip span { display: inline-flex; align-items: center; gap: 6px; }
+.dash-bar-col:hover .dash-bar-tip, .dash-bar-col:focus .dash-bar-tip { display: flex; }

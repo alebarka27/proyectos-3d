@@ -39,18 +39,24 @@ a `PUBLIC_PATHS` en `api/index.js` o los visitantes sin sesión no lo van a pode
 
 ## Base de datos (Vercel Postgres)
 
-Tres tablas, creadas automáticamente al arrancar:
+Cuatro tablas, creadas automáticamente al arrancar:
 
-- **proyectos**: id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, colores, colorfotos, archivos
+- **proyectos**: id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, colores, colorfotos, archivos, filamento, colores_usados, notas_impresion, calc_desglose
 - **categorias**: nombre (PK)
 - **ventas**: id, proyectoid, proyectonombre, cantidad, precioventa, costo, ganancia, fecha
+- **encargos**: id, cliente, contacto, detalle, precio, sena, estado (Pendiente/En proceso/Entregado/Cancelado), fecha, fecha_entrega, notas
 
 `archivos` guarda un JSON `[{nombre, url}]` con los links a los archivos de
 impresión de cada modelo (STL/3MF/gcode, normalmente en Drive). Se administran
 desde la vista de detalle del admin (se abre al hacer click en una fila de la
-tabla de proyectos). Las columnas `linkarchivo`, `es_digital` y `drive_file_id`
-son legado de cuando se vendían STL (ya no se venden): se conservan los datos
-pero nada las usa; al arrancar se migran a `archivos` si esta está vacía.
+tabla de proyectos). `filamento`, `colores_usados` y `notas_impresion` son la
+ficha de impresión (privada, no se muestra en la tienda). `calc_desglose` guarda
+el JSON `{gramos, horas, extras}` de la calculadora al crear el proyecto desde
+ahí, y lo usa `POST /api/proyectos/recalcular-costos` para actualizar todos los
+costos cuando cambia el precio del filamento. Las columnas `linkarchivo`,
+`es_digital` y `drive_file_id` son legado de cuando se vendían STL (ya no se
+venden): se conservan los datos pero nada las usa; al arrancar se migran a
+`archivos` si esta está vacía.
 
 Al arrancar por primera vez, migra datos desde `proyectos.json` si existe y la DB está vacía.
 
@@ -74,8 +80,10 @@ En el frontend hay que leer esos nombres en minúsculas. El camelCase (`precioVe
 | GET | `/api/destacados` | ❌ | Productos destacados (para home) |
 | GET | `/api/buscar` | ❌ | Búsqueda pública |
 | GET | `/api/producto/:id` | ❌ | Detalle de producto + similares |
+| POST | `/api/proyectos/recalcular-costos` | ✅ | Recalcula costos de proyectos con desglose de calculadora |
 | GET/POST/PUT/DELETE | `/api/categorias` | ✅ | CRUD de categorías |
 | GET/POST/DELETE | `/api/ventas` | ✅ | CRUD de ventas |
+| GET/POST/PUT/DELETE | `/api/encargos` | ✅ | CRUD de encargos (+ PATCH `/api/encargos/:id/estado`) |
 | GET | `/api/ml/auth` | ✅ | Iniciar OAuth ML |
 | GET | `/api/ml/callback` | ❌ | Callback OAuth ML |
 | GET | `/api/ml/status` | ❌ | Estado de conexión ML |

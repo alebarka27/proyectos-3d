@@ -49,10 +49,11 @@ async function cargar() {
     document.getElementById('btnLogout').classList.toggle('hidden', !authed);
 
     if (authed) {
-        const [resP, resC, resV] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA)]);
+        const [resP, resC, resV, resE] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA), apiFetch(API_ENC)]);
         todosProyectos = await resP.json();
         catsGuardadas = await resC.json();
         todasLasVentas = await resV.json();
+        todosEncargos = await resE.json();
         renderSidebar();
         renderTabla();
         checkMLStatus();
@@ -354,6 +355,18 @@ function stockPill(p) {
 
 function renderTabla() {
     const filtrados = proyectosFiltrados();
+
+    // Modo "cola de impresión": mismas búsquedas/filtros, otra presentación
+    const enCola = modoProyectos === 'cola';
+    document.querySelector('#vistaProyectos .tabla-scroll').classList.toggle('hidden', enCola);
+    document.getElementById('colaImpresion').classList.toggle('hidden', !enCola);
+    if (enCola) {
+        renderCola(filtrados);
+        const countEl = document.getElementById('proyCount');
+        if (countEl) countEl.textContent = `${filtrados.length} de ${todosProyectos.length} proyectos`;
+        return;
+    }
+
     const tbody = document.getElementById('tbody');
     if (!filtrados.length) {
         tbody.innerHTML = `
@@ -427,10 +440,85 @@ function filtrar(cat) {
     renderTabla();
 }
 
+/* --- Cola de impresión (proyectos como tablero por estado) --- */
+
+let modoProyectos = 'tabla';
+
+function toggleModoProyectos() {
+    modoProyectos = modoProyectos === 'tabla' ? 'cola' : 'tabla';
+    const btn = document.getElementById('btnModoProyectos');
+    btn.textContent = modoProyectos === 'cola' ? 'Ver tabla' : 'Cola de impresión';
+    btn.classList.toggle('btn-eshop-on', modoProyectos === 'cola');
+    renderTabla();
+}
+
+function renderCola(filtrados) {
+    const cont = document.getElementById('colaImpresion');
+    cont.innerHTML = ESTADOS_VALIDOS.map(est => {
+        const idx = ESTADOS_VALIDOS.indexOf(est);
+        const grupo = filtrados.filter(p => (ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado') === est);
+        return `
+            <div class="cola-col">
+                <div class="cola-col-header">
+                    <span class="estado-badge estado-${est}">${est}</span>
+                    <span class="carpeta-count">${grupo.length}</span>
+                </div>
+                ${grupo.map(p => {
+                    const foto = mlGridImage(fotosArray(p.fotos)[0]);
+                    const sub = [p.filamento, p.colores_usados].filter(Boolean).join(' · ');
+                    return `
+                    <div class="cola-card" data-id="${p.id}" title="Ver detalle">
+                        ${foto && /^https?:\/\//i.test(foto)
+                            ? `<img src="${escapeHTML(foto)}" alt="" loading="lazy" onerror="this.remove()">`
+                            : `<div class="cola-card-ph">${icon('printer')}</div>`}
+                        <div class="cola-card-info">
+                            <div class="cola-card-nombre">${escapeHTML(p.nombre)}</div>
+                            ${sub ? `<div class="cola-card-sub">${escapeHTML(sub)}</div>` : ''}
+                        </div>
+                        <div class="cola-card-btns">
+                            ${idx > 0 ? `<button class="btn-sm" title="Volver a ${ESTADOS_VALIDOS[idx - 1]}" onclick="moverEstado('${p.id}', -1)">←</button>` : ''}
+                            ${idx < ESTADOS_VALIDOS.length - 1 ? `<button class="btn-sm" title="Pasar a ${ESTADOS_VALIDOS[idx + 1]}" onclick="moverEstado('${p.id}', 1)">→</button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('') || '<p class="cola-vacia">Nada por acá</p>'}
+            </div>`;
+    }).join('');
+    cont.querySelectorAll('.cola-card').forEach(el => {
+        el.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            abrirDetalle(el.dataset.id);
+        });
+    });
+}
+
+async function moverEstado(id, dir) {
+    const p = todosProyectos.find(x => x.id === id);
+    if (!p) return;
+    const idx = ESTADOS_VALIDOS.indexOf(ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado');
+    const nuevo = ESTADOS_VALIDOS[Math.min(ESTADOS_VALIDOS.length - 1, Math.max(0, idx + dir))];
+    if (nuevo === p.estado) return;
+    const res = await apiFetch(`${API_PROY}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...bodyDesdeProyecto(p), estado: nuevo }),
+    });
+    if (!res.ok) { showToast('No se pudo cambiar el estado', 'error'); return; }
+    const actualizado = await res.json();
+    const i = todosProyectos.findIndex(x => x.id === id);
+    if (i !== -1) todosProyectos[i] = actualizado;
+    renderTabla();
+    if (detalleId) renderDetalle();
+}
+
+// Desglose de la calculadora a adjuntar al crear un proyecto desde ahí
+// (null = no tocar el desglose guardado del proyecto)
+let formCalcDesglose = null;
+
 document.getElementById('btnNuevo').onclick = () => {
     document.getElementById('formTitle').textContent = 'Nuevo Proyecto';
     document.getElementById('projectForm').reset();
     document.getElementById('editId').value = '';
+    formCalcDesglose = null;
     document.getElementById('formOverlay').classList.remove('hidden');
 };
 
@@ -453,9 +541,13 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         fotos: document.getElementById('fotos').value,
         estado: document.getElementById('estado').value,
         descripcion: document.getElementById('descripcion').value,
+        filamento: document.getElementById('filamento').value,
+        coloresUsados: document.getElementById('coloresUsados').value,
+        notasImpresion: document.getElementById('notasImpresion').value,
         destacado: document.getElementById('destacadoCheck').checked,
         publicarEshop: document.getElementById('publicarEshop').checked,
     };
+    if (formCalcDesglose) data.calcDesglose = JSON.stringify(formCalcDesglose);
     // Aviso de precio inconsistente (se puede guardar igual, pero a propósito)
     const costoNum = parseFloat(data.costo) || 0;
     const ventaNum = parseFloat(data.precioVenta) || 0;
@@ -495,9 +587,13 @@ async function editar(id) {
     document.getElementById('mlId').value = p.ml_id || '';
     document.getElementById('fotos').value = p.fotos || '';
     document.getElementById('descripcion').value = p.descripcion || '';
+    document.getElementById('filamento').value = p.filamento || '';
+    document.getElementById('coloresUsados').value = p.colores_usados || '';
+    document.getElementById('notasImpresion').value = p.notas_impresion || '';
     document.getElementById('destacadoCheck').checked = !!p.destacado;
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
+    formCalcDesglose = null;
     document.getElementById('formOverlay').classList.remove('hidden');
 }
 
@@ -544,6 +640,8 @@ function bodyDesdeProyecto(p) {
         cantidad: p.cantidad, mlId: p.ml_id, fotos: p.fotos,
         estado: p.estado, descripcion: p.descripcion,
         destacado: !!p.destacado, publicarEshop: !!p.publicareshop,
+        filamento: p.filamento || '', coloresUsados: p.colores_usados || '',
+        notasImpresion: p.notas_impresion || '',
     };
 }
 
@@ -607,6 +705,7 @@ function renderDetalle() {
                 ${p.descripcion ? `<div class="det-desc"><span class="det-label">Descripción</span><p>${escapeHTML(p.descripcion).replace(/\n/g, '<br>')}</p></div>` : ''}
             </div>
         </div>
+        ${fichaImpresionHTML(p)}
         <div class="det-archivos">
             <h3>${icon('printer')} Archivos para imprimir <span class="proy-count">${archivos.length || 'ninguno'}</span></h3>
             ${archivos.length ? `<div class="arch-lista">${archivos.map((a, i) => `
@@ -631,6 +730,36 @@ function renderDetalle() {
             <button class="btn-secondary btn-peligro" onclick="eliminar('${p.id}')">${icon('trash')} Eliminar</button>
         </div>`;
     return true;
+}
+
+// Seccion "Ficha de impresión" del detalle: filamento, colores usados,
+// notas privadas y el desglose guardado de la calculadora (si existe).
+function fichaImpresionHTML(p) {
+    let desglose = null;
+    try { desglose = p.calc_desglose ? JSON.parse(p.calc_desglose) : null; } catch { desglose = null; }
+    const tieneAlgo = p.filamento || p.colores_usados || p.notas_impresion || desglose;
+
+    const dato = (label, valor) => `<div class="det-item"><span class="det-label">${label}</span><span class="det-value">${valor}</span></div>`;
+    let items = '';
+    if (p.filamento) items += dato('Filamento', escapeHTML(p.filamento));
+    if (p.colores_usados) items += dato('Colores usados', `${coloresChips(p.colores_usados)}<span class="ficha-colores-txt">${escapeHTML(p.colores_usados)}</span>`);
+    if (desglose) {
+        const extras = (Array.isArray(desglose.extras) ? desglose.extras : []);
+        const partes = [];
+        if (parseFloat(desglose.gramos)) partes.push(`${desglose.gramos} g`);
+        if (parseFloat(desglose.horas)) partes.push(`${desglose.horas} h de impresión`);
+        if (extras.length) partes.push(extras.map(e => escapeHTML(e.nombre)).join(', '));
+        if (partes.length) items += dato('Cálculo guardado', partes.join(' · '));
+    }
+
+    return `
+        <div class="det-ficha">
+            <h3>${icon('sliders')} Ficha de impresión</h3>
+            ${tieneAlgo ? `
+                ${items ? `<div class="det-grid">${items}</div>` : ''}
+                ${p.notas_impresion ? `<div class="det-desc"><span class="det-label">Detalles</span><p>${escapeHTML(p.notas_impresion).replace(/\n/g, '<br>')}</p></div>` : ''}`
+            : `<p class="muted">Sin datos de impresión todavía — cargá filamento, colores y detalles desde "Editar".</p>`}
+        </div>`;
 }
 
 function detalleCambiarFoto(el, src) {
@@ -862,6 +991,8 @@ async function renombrarCarpeta(viejo) {
 
 const API_VTA = '/api/ventas';
 let todasLasVentas = [];
+const API_ENC = '/api/encargos';
+let todosEncargos = [];
 
 async function cargarVentas() {
     const res = await apiFetch(API_VTA);
@@ -1044,6 +1175,9 @@ function renderDashboard() {
         }
     }
 
+    renderDashEncargos();
+    renderDashChart();
+
     // Recent projects (last 5)
     const recent = [...todosProyectos].slice(-5).reverse();
     const body = document.getElementById('dashRecentBody');
@@ -1066,6 +1200,86 @@ function renderDashboard() {
     }
 }
 
+// Widget del dashboard: encargos activos ordenados por fecha de entrega
+function renderDashEncargos() {
+    const box = document.getElementById('dashEncargos');
+    if (!box) return;
+    const activos = todosEncargos.filter(esEncargoActivo)
+        .sort((a, b) => (a.fecha_entrega || '9999') < (b.fecha_entrega || '9999') ? -1 : 1);
+    if (!activos.length) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+    }
+    box.classList.remove('hidden');
+    box.innerHTML = `
+        <div class="dash-encargos-header">
+            ${icon('box')} Encargos activos (${activos.length})
+            <button class="btn-sm" onclick="cambiarVista('encargos')">Ver todos</button>
+        </div>
+        ${activos.slice(0, 5).map(e => `
+            <div class="dash-encargo-item">
+                <span class="dash-encargo-nombre"><strong>${escapeHTML(e.cliente || 'Sin nombre')}</strong> — ${escapeHTML(e.detalle || '')}</span>
+                ${chipEntrega(e)}
+                ${badgeEncargo(e.estado)}
+            </div>`).join('')}`;
+}
+
+/* --- Gráfico de ventas por mes (barras apiladas: costos + ganancia = ingresos) --- */
+
+function renderDashChart() {
+    const card = document.getElementById('dashChartCard');
+    if (!card) return;
+    if (!todasLasVentas.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+
+    // Últimos 6 meses, incluidos los que no tuvieron ventas
+    const meses = [];
+    const hoy = new Date();
+    for (let i = 5; i >= 0; i--) {
+        const m = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+        meses.push({
+            key: `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`,
+            label: m.toLocaleDateString('es-AR', { month: 'short' }).replace('.', ''),
+        });
+    }
+    const porMes = Object.fromEntries(meses.map(m => [m.key, { ingresos: 0, costos: 0 }]));
+    for (const v of todasLasVentas) {
+        const key = (v.fecha || '').slice(0, 7);
+        if (porMes[key]) {
+            porMes[key].ingresos += (v.cantidad || 0) * (v.precioventa || 0);
+            porMes[key].costos += (v.cantidad || 0) * (v.costo || 0);
+        }
+    }
+
+    const H = 140; // alto en px de la barra del mes más alto
+    const max = Math.max(...meses.map(m => porMes[m.key].ingresos), 1);
+    const ultimoConVentas = [...meses].reverse().find(m => porMes[m.key].ingresos > 0);
+
+    document.getElementById('dashChart').innerHTML = meses.map(m => {
+        const d = porMes[m.key];
+        const ganReal = d.ingresos - d.costos;
+        const gan = Math.max(0, ganReal);
+        const hGan = Math.round((gan / max) * H);
+        const hCos = Math.round((d.costos / max) * H);
+        const esUltimo = ultimoConVentas && m.key === ultimoConVentas.key;
+        return `
+            <div class="dash-bar-col" tabindex="0">
+                <div class="dash-bar-tip" role="tooltip">
+                    <strong>${m.label} · $${formatearPrecio(d.ingresos)}</strong>
+                    <span><span class="dash-legend-dot" style="background:#16a34a"></span>Ganancia $${formatearPrecio(ganReal)}</span>
+                    <span><span class="dash-legend-dot" style="background:#3b82f6"></span>Costos $${formatearPrecio(d.costos)}</span>
+                </div>
+                ${esUltimo ? `<span class="dash-bar-total">$${formatearPrecio(d.ingresos)}</span>` : ''}
+                <div class="dash-bar-stack" style="height:${H}px">
+                    ${hGan ? `<div class="dash-bar-seg dash-bar-gan" style="height:${hGan}px"></div>` : ''}
+                    ${hCos ? `<div class="dash-bar-seg dash-bar-cos" style="height:${hCos}px"></div>` : ''}
+                </div>
+                <span class="dash-bar-label">${m.label}</span>
+            </div>`;
+    }).join('');
+}
+
 /* --- Project search --- */
 
 let proySearchTerm = '';
@@ -1080,11 +1294,11 @@ let vistaActual = '';
 function cambiarVista(vista) {
     const repetida = vista === vistaActual;
     vistaActual = vista;
-    const etiquetas = { dashboard: 'Dashboard', tienda: 'Tienda', proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
+    const etiquetas = { dashboard: 'Dashboard', tienda: 'Tienda', proyectos: 'Proyectos', encargos: 'Encargos', ventas: 'Ventas', calculadora: 'Calculadora' };
     document.querySelectorAll('.tab').forEach(t => {
         t.classList.toggle('tab-activo', t.textContent.includes(etiquetas[vista]));
     });
-    const vistas = ['Dashboard', 'Tienda', 'Proyectos', 'Ventas', 'Calculadora'];
+    const vistas = ['Dashboard', 'Tienda', 'Proyectos', 'Encargos', 'Ventas', 'Calculadora'];
     vistas.forEach(v => {
         const el = document.getElementById('vista' + v);
         if (el) el.classList.toggle('hidden', v.toLowerCase() !== vista);
@@ -1092,6 +1306,7 @@ function cambiarVista(vista) {
     document.getElementById('btnNuevo').classList.toggle('hidden', vista !== 'proyectos');
     if (vista === 'dashboard') renderDashboard();
     if (vista === 'tienda') renderTienda();
+    if (vista === 'encargos') renderEncargos();
     if (vista === 'ventas') renderVentas();
     if (vista === 'calculadora') calcularPrecio();
     if (vista === 'proyectos') renderTabla();
@@ -1220,9 +1435,44 @@ function usarComoCosto() {
     document.getElementById('costo').value = ultimoTotalCalculado.toFixed(2);
     if (ultimoPrecioCalculadora > 0) document.getElementById('precioVenta').value = ultimoPrecioCalculadora;
     const marca = document.getElementById('calcMarca').value.trim();
-    if (marca) document.getElementById('nombre').value = marca;
+    if (marca) document.getElementById('filamento').value = marca;
+    // El proyecto guarda el desglose del cálculo para poder recalcular el
+    // costo más adelante cuando cambie el precio del filamento
+    formCalcDesglose = {
+        gramos: parseFloat(document.getElementById('calcGramos').value) || 0,
+        horas: parseFloat(document.getElementById('calcHoras').value) || 0,
+        extras: calcExtras.map(e => ({ nombre: e.nombre, costo: e.costo })),
+    };
     cambiarVista('proyectos');
     document.getElementById('formOverlay').classList.remove('hidden');
+}
+
+// Recalcula el costo de todos los proyectos que guardaron desglose, usando
+// los precios actuales de la calculadora (material, kWh, desgaste).
+async function recalcularCostos() {
+    const costoKg = parseFloat(document.getElementById('calcCostoMaterial').value) || 0;
+    const kwh = parseFloat(document.getElementById('calcKwh').value) || 0;
+    const desgaste = parseFloat(document.getElementById('calcDesgaste').value) || 0;
+    const ok = await showConfirm(
+        `Se recalcula el costo de todos los proyectos creados desde la calculadora con estos valores: material $${formatearPrecio(costoKg)}/kg, energía $${formatearPrecio(kwh)}/kWh, desgaste $${formatearPrecio(desgaste)}/h. ¿Seguir?`,
+        { title: 'Recalcular costos', confirmLabel: 'Recalcular' }
+    );
+    if (!ok) return;
+    const res = await apiFetch(`${API_PROY}/recalcular-costos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ costoMaterialKg: costoKg, kwh, desgasteHora: desgaste }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.error || 'No se pudo recalcular', 'error'); return; }
+    if (!data.conDesglose) {
+        showToast('Ningún proyecto tiene desglose guardado todavía. Los que crees desde la calculadora lo van a guardar solos.', 'info', 7000);
+        return;
+    }
+    showToast(data.actualizados
+        ? `Costos actualizados: ${data.actualizados} de ${data.conDesglose} proyectos`
+        : `Los ${data.conDesglose} proyectos con desglose ya estaban al día`, 'success', 6000);
+    if (data.actualizados) cargar();
 }
 
 // Enter en los campos de extra = agregarlo (más rápido que ir al botón)
@@ -1298,6 +1548,226 @@ async function eliminarVenta(id) {
         await cargarVentas();
         renderVentas();
     }
+}
+
+/* --- Encargos (pedidos de clientes con seña y fecha de entrega) --- */
+
+const ESTADOS_ENCARGO = ['Pendiente', 'En proceso', 'Entregado', 'Cancelado'];
+const esEncargoActivo = e => e.estado === 'Pendiente' || e.estado === 'En proceso';
+
+function encargosFiltrados() {
+    const f = document.getElementById('encargoFiltro')?.value || 'activos';
+    let lista;
+    if (f === 'todos') lista = [...todosEncargos];
+    else if (f === 'activos') lista = todosEncargos.filter(esEncargoActivo);
+    else lista = todosEncargos.filter(e => e.estado === f);
+    // Activos: primero lo que hay que entregar antes (sin fecha al final)
+    return lista.sort((a, b) => {
+        if (esEncargoActivo(a) !== esEncargoActivo(b)) return esEncargoActivo(a) ? -1 : 1;
+        const fa = a.fecha_entrega || '9999';
+        const fb = b.fecha_entrega || '9999';
+        return fa < fb ? -1 : fa > fb ? 1 : 0;
+    });
+}
+
+function badgeEncargo(estado) {
+    return `<span class="enc-badge enc-badge-${estado.replace(/\s/g, '-')}">${escapeHTML(estado)}</span>`;
+}
+
+// Chip de fecha de entrega: avisa si es hoy o si ya pasó (solo encargos activos)
+function chipEntrega(e) {
+    if (!e.fecha_entrega) return '';
+    if (!esEncargoActivo(e)) return `<span class="enc-fecha">${escapeHTML(e.fecha_entrega)}</span>`;
+    const hoy = new Date().toISOString().split('T')[0];
+    if (e.fecha_entrega < hoy) return `<span class="enc-fecha enc-fecha-vencida">${icon('warning')} Atrasado (${escapeHTML(e.fecha_entrega)})</span>`;
+    if (e.fecha_entrega === hoy) return `<span class="enc-fecha enc-fecha-hoy">${icon('warning')} Se entrega HOY</span>`;
+    return `<span class="enc-fecha">Entrega: ${escapeHTML(e.fecha_entrega)}</span>`;
+}
+
+// Link de WhatsApp al cliente a partir del contacto (si parece un teléfono)
+function waCliente(contacto) {
+    const digitos = String(contacto || '').replace(/\D/g, '').replace(/^0+/, '');
+    if (digitos.length < 8) return '';
+    return `https://wa.me/${digitos.startsWith('54') ? digitos : '549' + digitos}`;
+}
+
+function renderEncargos() {
+    const activos = todosEncargos.filter(esEncargoActivo);
+    const porCobrar = activos.reduce((s, e) => s + Math.max(0, (e.precio || 0) - (e.sena || 0)), 0);
+    const senas = activos.reduce((s, e) => s + (e.sena || 0), 0);
+    const entregados = todosEncargos.filter(e => e.estado === 'Entregado').length;
+
+    document.getElementById('encargoStats').innerHTML = `
+        <div class="stat-card">
+            <span class="stat-label">Encargos activos</span>
+            <span class="stat-value">${activos.length}</span>
+        </div>
+        <div class="stat-card stat-destacado">
+            <span class="stat-label">Por cobrar</span>
+            <span class="stat-value">$${formatearPrecio(porCobrar)}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Señas recibidas</span>
+            <span class="stat-value">$${formatearPrecio(senas)}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Entregados</span>
+            <span class="stat-value">${entregados}</span>
+        </div>`;
+
+    const lista = encargosFiltrados();
+    const cont = document.getElementById('listaEncargos');
+    if (!lista.length) {
+        cont.innerHTML = `
+            <div class="empty-state">
+                ${icon('inbox', 'icon-lg')}
+                <p class="empty-state-title">Sin encargos${document.getElementById('encargoFiltro')?.value !== 'todos' ? ' en este filtro' : ''}</p>
+                <p class="empty-state-text">Cuando te pidan algo por WhatsApp, cargalo con "Nuevo Encargo" para no perderle el rastro.</p>
+            </div>`;
+        return;
+    }
+
+    cont.innerHTML = lista.map(e => {
+        const resta = Math.max(0, (e.precio || 0) - (e.sena || 0));
+        const wa = waCliente(e.contacto);
+        return `
+            <div class="enc-card ${esEncargoActivo(e) ? '' : 'enc-card-cerrado'}">
+                <div class="enc-card-top">
+                    <div class="enc-card-cliente">
+                        <strong>${escapeHTML(e.cliente || 'Sin nombre')}</strong>
+                        ${badgeEncargo(e.estado)}
+                    </div>
+                    ${chipEntrega(e)}
+                </div>
+                <div class="enc-card-detalle">${escapeHTML(e.detalle || '-')}</div>
+                ${e.notas ? `<div class="enc-card-notas">${escapeHTML(e.notas)}</div>` : ''}
+                <div class="enc-card-monto">
+                    ${e.precio ? `<span>Total <strong>$${formatearPrecio(e.precio)}</strong></span>` : ''}
+                    ${e.sena ? `<span>Seña <strong>$${formatearPrecio(e.sena)}</strong></span>` : ''}
+                    ${e.precio ? `<span class="${resta ? 'text-rojo' : 'text-verde'}">${resta ? `Restan <strong>$${formatearPrecio(resta)}</strong>` : 'Pagado ✓'}</span>` : ''}
+                </div>
+                <div class="enc-card-acciones">
+                    ${wa ? `<a class="btn-sm" href="${wa}" target="_blank" rel="noopener noreferrer">${icon('chat')} WhatsApp</a>` : ''}
+                    ${e.estado === 'Pendiente' ? `<button class="btn-sm" onclick="cambiarEstadoEncargo('${e.id}', 'En proceso')">${icon('printer')} Empezar</button>` : ''}
+                    ${esEncargoActivo(e) ? `<button class="btn-sm btn-eshop-on" onclick="entregarEncargo('${e.id}')">${icon('check')} Entregar</button>` : ''}
+                    ${e.estado === 'Cancelado' || e.estado === 'Entregado' ? `<button class="btn-sm" onclick="cambiarEstadoEncargo('${e.id}', 'Pendiente')">Reabrir</button>` : ''}
+                    <button class="btn-sm" title="Editar" onclick="editarEncargo('${e.id}')">${icon('pencil')}</button>
+                    ${esEncargoActivo(e) ? `<button class="btn-sm" title="Cancelar encargo" onclick="cambiarEstadoEncargo('${e.id}', 'Cancelado')">${icon('close')}</button>` : ''}
+                    <button class="btn-sm btn-peligro" title="Eliminar" onclick="eliminarEncargo('${e.id}')">${icon('trash')}</button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function mostrarFormEncargo() {
+    document.getElementById('encargoFormTitle').textContent = 'Nuevo Encargo';
+    document.getElementById('encargoForm').reset();
+    document.getElementById('encargoEditId').value = '';
+    document.getElementById('encEstado').value = 'Pendiente';
+    document.getElementById('encargoOverlay').classList.remove('hidden');
+}
+
+function editarEncargo(id) {
+    const e = todosEncargos.find(x => x.id === id);
+    if (!e) return;
+    document.getElementById('encargoFormTitle').textContent = 'Editar Encargo';
+    document.getElementById('encargoEditId').value = e.id;
+    document.getElementById('encCliente').value = e.cliente || '';
+    document.getElementById('encContacto').value = e.contacto || '';
+    document.getElementById('encDetalle').value = e.detalle || '';
+    document.getElementById('encPrecio').value = e.precio || '';
+    document.getElementById('encSena').value = e.sena || '';
+    document.getElementById('encFechaEntrega').value = e.fecha_entrega || '';
+    document.getElementById('encEstado').value = ESTADOS_ENCARGO.includes(e.estado) ? e.estado : 'Pendiente';
+    document.getElementById('encNotas').value = e.notas || '';
+    document.getElementById('encargoOverlay').classList.remove('hidden');
+}
+
+function cerrarFormEncargo() {
+    document.getElementById('encargoOverlay').classList.add('hidden');
+}
+
+document.getElementById('encargoForm').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const id = document.getElementById('encargoEditId').value;
+    const data = {
+        cliente: document.getElementById('encCliente').value,
+        contacto: document.getElementById('encContacto').value,
+        detalle: document.getElementById('encDetalle').value,
+        precio: document.getElementById('encPrecio').value,
+        sena: document.getElementById('encSena').value,
+        fechaEntrega: document.getElementById('encFechaEntrega').value,
+        estado: document.getElementById('encEstado').value,
+        notas: document.getElementById('encNotas').value,
+    };
+    const res = await apiFetch(id ? `${API_ENC}/${id}` : API_ENC, {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'No se pudo guardar el encargo', 'error');
+        return;
+    }
+    const guardado = await res.json();
+    const i = todosEncargos.findIndex(x => x.id === guardado.id);
+    if (i !== -1) todosEncargos[i] = guardado; else todosEncargos.unshift(guardado);
+    cerrarFormEncargo();
+    renderEncargos();
+    showToast('Encargo guardado', 'success');
+};
+
+async function cambiarEstadoEncargo(id, estado) {
+    const res = await apiFetch(`${API_ENC}/${id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado }),
+    });
+    if (!res.ok) { showToast('No se pudo cambiar el estado', 'error'); return null; }
+    const actualizado = await res.json();
+    const i = todosEncargos.findIndex(x => x.id === id);
+    if (i !== -1) todosEncargos[i] = actualizado;
+    renderEncargos();
+    return actualizado;
+}
+
+// Entregar = marcar Entregado y, si tiene precio, ofrecer registrar la venta
+async function entregarEncargo(id) {
+    const e = todosEncargos.find(x => x.id === id);
+    if (!e) return;
+    if (!(await showConfirm(`¿Marcar como entregado el encargo de "${e.cliente || 'cliente'}"?`, { title: 'Entregar encargo', confirmLabel: 'Entregar' }))) return;
+    const actualizado = await cambiarEstadoEncargo(id, 'Entregado');
+    if (!actualizado) return;
+    if ((e.precio || 0) > 0) {
+        const registrar = await showConfirm(
+            `¿Registrar también la venta por $${formatearPrecio(e.precio)}? (el costo queda en 0, lo podés editar después en Ventas)`,
+            { title: 'Registrar venta', confirmLabel: 'Registrar venta', cancelLabel: 'No, solo entregar' }
+        );
+        if (registrar) {
+            await apiFetch(API_VTA, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    proyectoNombre: `Encargo: ${e.detalle || ''}${e.cliente ? ` (${e.cliente})` : ''}`.slice(0, 120),
+                    cantidad: 1,
+                    precioVenta: e.precio,
+                    costo: 0,
+                }),
+            });
+            await cargarVentas();
+            showToast('Encargo entregado y venta registrada', 'success');
+            return;
+        }
+    }
+    showToast('Encargo entregado', 'success');
+}
+
+async function eliminarEncargo(id) {
+    if (!(await showConfirm('¿Eliminar este encargo? Se pierde el registro (si ya lo entregaste, conviene dejarlo).', { danger: true }))) return;
+    await apiFetch(`${API_ENC}/${id}`, { method: 'DELETE' });
+    todosEncargos = todosEncargos.filter(x => x.id !== id);
+    renderEncargos();
 }
 
 async function eliminarCarpeta(nombre) {
