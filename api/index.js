@@ -4,8 +4,6 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const ml = require('./ml');
-const drive = require('./drive');
-const { Readable } = require('stream');
 
 // workaround: ensure no app.get('*') pattern for Express 5 compatibility
 
@@ -16,10 +14,6 @@ const PORT = process.env.PORT || 3000;
 // s-maxage: cachea 2 min; stale-while-revalidate: sirve cache viejo hasta 10 min
 // mientras revalida en segundo plano.
 const CACHE_PUBLICO = 'public, s-maxage=120, stale-while-revalidate=600';
-
-// Archivos digitales mas pesados que esto se entregan redirigiendo directo a Drive
-// (mas rapido, no satura la funcion serverless). Mas chicos se sirven por stream.
-const DESCARGA_PROXY_MAX_MB = parseInt(process.env.DESCARGA_PROXY_MAX_MB) || 80;
 
 app.set('trust proxy', true);
 app.use(express.json());
@@ -120,7 +114,6 @@ app.use((req, res, next) => {
     if (req.path === '/login.html' && authed) return res.redirect('/admin');
     if (PUBLIC_PATHS.has(req.path)) return next();
     if (req.path.startsWith('/api/producto/')) return next();
-    if (req.path.startsWith('/api/descargar/')) return next();
     if (authed) return next();
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'No autenticado' });
     return res.redirect('/login.html');
@@ -189,7 +182,7 @@ app.get('/producto.html', async (req, res, next) => {
         try {
             await ensureDB();
             const { rows } = await sql`
-                SELECT nombre, categoria, fotos, precioventa, cantidad, descripcion, es_digital FROM proyectos
+                SELECT nombre, categoria, fotos, precioventa, cantidad, descripcion FROM proyectos
                 WHERE id = ${id} AND publicareshop = true
             `;
             if (rows.length) {
@@ -199,7 +192,7 @@ app.get('/producto.html', async (req, res, next) => {
                     .replace(/\s+/g, ' ').trim().slice(0, 200);
                 const foto = mlHighRes((p.fotos || '').split(',')[0]?.trim() || '');
                 const url = `https://${req.headers.host}/producto.html?id=${encodeURIComponent(id)}`;
-                const disponible = p.es_digital || (parseInt(p.cantidad) || 0) > 0;
+                const disponible = (parseInt(p.cantidad) || 0) > 0;
 
                 html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeAttr(titulo)}</title>`);
                 html = setMetaById(html, 'metaDescription', desc);
@@ -282,6 +275,50 @@ app.get('/admin', (req, res) => {
 let dbReady = false;
 let dbInitPromise = null;
 
+/* ---- Archivos del modelo ----
+   Cada proyecto guarda en la columna `archivos` un JSON [{nombre, url}] con los
+   links a sus archivos de impresion (STL/3MF/gcode, normalmente en Drive). */
+
+function normalizarArchivos(valor) {
+    let lista = valor;
+    if (typeof valor === 'string') {
+        try { lista = JSON.parse(valor); } catch { lista = []; }
+    }
+    if (!Array.isArray(lista)) lista = [];
+    return JSON.stringify(lista
+        .map(a => ({ nombre: String((a && a.nombre) || '').trim(), url: String((a && a.url) || '').trim() }))
+        .filter(a => a.url));
+}
+
+// Acepta tanto un ID de archivo de Drive como un link completo y devuelve el ID.
+function driveFileIdFrom(valor) {
+    const v = String(valor || '').trim();
+    let m = v.match(/\/d\/([a-zA-Z0-9_-]+)/);   // .../file/d/<ID>/view
+    if (m) return m[1];
+    m = v.match(/[?&]id=([a-zA-Z0-9_-]+)/);      // ...?id=<ID>
+    if (m) return m[1];
+    return v;
+}
+
+// Migracion unica (idempotente): vuelca linkarchivo y drive_file_id de cada
+// proyecto en la nueva lista `archivos`, para no perder los links ya cargados.
+async function migrarArchivos() {
+    const { rows } = await sql`
+        SELECT id, linkarchivo, drive_file_id FROM proyectos
+        WHERE (archivos = '' OR archivos IS NULL)
+          AND (linkarchivo != '' OR drive_file_id != '')
+    `;
+    for (const p of rows) {
+        const lista = [];
+        if (p.linkarchivo) lista.push({ nombre: 'Archivo del modelo', url: p.linkarchivo });
+        if (p.drive_file_id) {
+            lista.push({ nombre: 'Archivo en Drive', url: `https://drive.google.com/file/d/${driveFileIdFrom(p.drive_file_id)}/view` });
+        }
+        await sql`UPDATE proyectos SET archivos = ${JSON.stringify(lista)} WHERE id = ${p.id}`;
+    }
+    if (rows.length) console.log(`Migrados los links de ${rows.length} proyectos a la lista de archivos`);
+}
+
 async function initDB() {
     try {
         await sql`
@@ -307,20 +344,12 @@ async function initDB() {
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS destacado BOOLEAN DEFAULT FALSE;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colores TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colorfotos TEXT DEFAULT '';`;
-        // Productos digitales (archivos STL servidos desde Google Drive)
+        // Columnas legado de la epoca de venta de STL (ya no se usan, se conservan los datos)
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS es_digital BOOLEAN DEFAULT FALSE;`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS drive_file_id TEXT DEFAULT '';`;
-        // Tokens de descarga generados al vender un producto digital
-        await sql`
-            CREATE TABLE IF NOT EXISTS descargas (
-                token TEXT PRIMARY KEY,
-                proyectoid TEXT DEFAULT '',
-                ml_order_id TEXT DEFAULT '',
-                vence BIGINT DEFAULT 0,
-                descargas_restantes INTEGER DEFAULT 5,
-                fecha TEXT DEFAULT ''
-            );
-        `;
+        // Archivos para imprimir cada modelo: JSON [{nombre, url}] por proyecto
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS archivos TEXT DEFAULT '';`;
+        await migrarArchivos();
         await sql`
             CREATE TABLE IF NOT EXISTS categorias (
                 nombre TEXT PRIMARY KEY
@@ -426,13 +455,13 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
+        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id)
-            VALUES (${id}, ${(nombre || '').trim()}, ${(codigo || '').trim()}, ${(categoria || '').trim()}, ${linkArchivo || ''},
+            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos)
+            VALUES (${id}, ${(nombre || '').trim()}, ${(codigo || '').trim()}, ${(categoria || '').trim()},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
-                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${!!esDigital}, ${driveFileId || ''})
+                    ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${normalizarArchivos(archivos)})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -450,10 +479,10 @@ app.post('/api/proyectos/:id/duplicar', async (req, res) => {
         const id = Date.now().toString();
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id, colores, colorfotos)
-            VALUES (${id}, ${(o.nombre || '') + ' (copia)'}, ${o.codigo || ''}, ${o.categoria || ''}, ${o.linkarchivo || ''},
+            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, colores, colorfotos)
+            VALUES (${id}, ${(o.nombre || '') + ' (copia)'}, ${o.codigo || ''}, ${o.categoria || ''},
                     ${o.costo || 0}, ${o.precioventa || 0}, 0, ${o.fotos || ''}, ${o.estado || 'Planificado'}, ${fecha},
-                    false, ${o.cantidad || 0}, '', ${o.descripcion || ''}, false, ${o.es_digital || false}, ${o.drive_file_id || ''}, ${o.colores || ''}, ${o.colorfotos || ''})
+                    false, ${o.cantidad || 0}, '', ${o.descripcion || ''}, false, ${o.archivos || ''}, ${o.colores || ''}, ${o.colorfotos || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -474,11 +503,10 @@ app.post('/api/proyectos/bulk', async (req, res) => {
             if (!it.nombre) continue;
             const id = (Date.now() + i).toString();
             await sql`
-                INSERT INTO proyectos (id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, es_digital, drive_file_id)
-                VALUES (${id}, ${it.nombre}, ${it.codigo || ''}, ${it.categoria || ''}, '',
+                INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado)
+                VALUES (${id}, ${it.nombre}, ${it.codigo || ''}, ${it.categoria || ''},
                         ${parseFloat(it.costo) || 0}, ${parseFloat(it.precioVenta) || 0}, 0, ${it.fotos || ''},
-                        'Planificado', ${fecha}, false, ${parseInt(it.cantidad) || 0}, '', ${it.descripcion || ''}, false,
-                        ${!!it.esDigital}, ${it.driveFileId || ''})
+                        'Planificado', ${fecha}, false, ${parseInt(it.cantidad) || 0}, '', ${it.descripcion || ''}, false)
             `;
             creados++;
         }
@@ -488,44 +516,20 @@ app.post('/api/proyectos/bulk', async (req, res) => {
     }
 });
 
-// Link directo de Google Drive del archivo del producto + mensaje listo para copiar
-// y pegarle al comprador en el chat de ML (entrega manual). El archivo debe estar
-// compartido en Drive como "cualquiera con el enlace" (lector).
-app.get('/api/proyectos/:id/download-link', async (req, res) => {
-    try {
-        const { rows } = await sql`SELECT id, nombre, es_digital, drive_file_id FROM proyectos WHERE id = ${req.params.id}`;
-        if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
-        const p = rows[0];
-        if (!p.es_digital || !p.drive_file_id) return res.json({ disponible: false, link: '', mensaje: '' });
-
-        const fileId = drive.fileIdFrom(p.drive_file_id);
-        const link = `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
-        const mensaje = `¡Hola! Muchas gracias por tu compra en AURORA.3D. 🌌✨
-
-Aquí tienes el enlace para descargar tu archivo digital en formato STL:
-👉 ${link}
-
-Nota importante: Para ayudarnos a procesar todo correctamente, por favor ingresa a los detalles de tu compra en Mercado Libre y marca la opción "Ya tengo el producto" o "Recibí el producto". Esto nos ayuda muchísimo a seguir creciendo.
-
-Si tienes alguna duda con el archivo o necesitas asistencia, escríbenos por acá. ¡Que disfrutes tu impresión! 🚀`;
-        res.json({ disponible: true, link, mensaje });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, linkArchivo, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, esDigital, driveFileId } = req.body;
+        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos } = req.body;
+        // Si el body no trae `archivos`, se conserva la lista guardada (COALESCE con null)
+        const archivosNuevos = archivos === undefined ? null : normalizarArchivos(archivos);
         const { rowCount } = await sql`
             UPDATE proyectos SET
                 nombre=${(nombre || '').trim()}, codigo=${(codigo || '').trim()}, categoria=${(categoria || '').trim()},
-                linkarchivo=${linkArchivo || ''}, costo=${parseFloat(costo) || 0},
+                costo=${parseFloat(costo) || 0},
                 precioventa=${parseFloat(precioVenta) || 0}, vendidos=${parseInt(vendidos) || 0},
                 fotos=${fotos || ''}, estado=${estado || 'Planificado'}, publicareshop=${!!publicarEshop},
                 cantidad=${parseInt(cantidad) || 0}, ml_id=${mlId || ''},
                 descripcion=${descripcion || ''}, destacado=${!!destacado},
-                es_digital=${!!esDigital}, drive_file_id=${driveFileId || ''}
+                archivos=COALESCE(${archivosNuevos}, archivos)
             WHERE id=${req.params.id}
         `;
         if (rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -582,8 +586,8 @@ app.get('/api/eshop', async (req, res) => {
     try {
         const { categoria } = req.query;
         const { rows } = categoria
-            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital, destacado FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
-            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital, destacado FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, destacado FROM proyectos WHERE publicareshop = true AND categoria = ${categoria} ORDER BY nombre`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, destacado FROM proyectos WHERE publicareshop = true ORDER BY nombre`;
         res.set('Cache-Control', CACHE_PUBLICO);
         res.json(rows);
     } catch (err) {
@@ -594,7 +598,7 @@ app.get('/api/eshop', async (req, res) => {
 app.get('/api/destacados', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital FROM proyectos
+            SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos
             WHERE publicareshop = true
             ORDER BY destacado DESC, vendidos DESC
             LIMIT 8
@@ -612,8 +616,8 @@ app.get('/api/buscar', async (req, res) => {
         if (!q || q.trim().length < 1) return res.json([]);
         const term = `%${q.trim()}%`;
         const { rows } = categoria
-            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
-            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores, es_digital FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
+            ? await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) AND categoria = ${categoria} ORDER BY nombre LIMIT 20`
+            : await sql`SELECT id, nombre, categoria, fotos, precioventa, cantidad, ml_id, colores FROM proyectos WHERE publicareshop = true AND (nombre ILIKE ${term} OR categoria ILIKE ${term}) ORDER BY nombre LIMIT 20`;
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -623,7 +627,7 @@ app.get('/api/buscar', async (req, res) => {
 app.get('/api/producto/:id', async (req, res) => {
     try {
         const { rows } = await sql`
-            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores, colorfotos, es_digital FROM proyectos
+            SELECT id, nombre, codigo, categoria, fotos, precioventa, cantidad, ml_id, descripcion, estado, colores, colorfotos FROM proyectos
             WHERE id = ${req.params.id} AND publicareshop = true
         `;
         if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
@@ -942,56 +946,6 @@ app.post('/api/ml/import', async (req, res) => {
     }
 });
 
-// Descarga de archivo digital (STL) mediante token unico. Publico: el comprador
-// llega aca desde el mensaje post-venta de ML. Valida vencimiento y cupo, y sirve
-// el archivo desde Google Drive sin exponer el link real de Drive.
-app.get('/api/descargar/:token', async (req, res) => {
-    try {
-        const { token } = req.params;
-        const { rows } = await sql`SELECT * FROM descargas WHERE token = ${token}`;
-        if (!rows.length) return res.status(404).send('Link de descarga inválido.');
-        const d = rows[0];
-        // vence puede venir como string (BIGINT). 0 = no vence nunca.
-        if (Number(d.vence) > 0 && Date.now() > Number(d.vence)) return res.status(410).send('Este link de descarga venció.');
-        if (d.descargas_restantes <= 0) return res.status(410).send('Se agotaron las descargas de este link.');
-
-        const { rows: pr } = await sql`SELECT nombre, drive_file_id FROM proyectos WHERE id = ${d.proyectoid}`;
-        if (!pr.length || !pr[0].drive_file_id) return res.status(404).send('Archivo no disponible.');
-        const fileId = drive.fileIdFrom(pr[0].drive_file_id);
-
-        const meta = await drive.getFileMeta(fileId).catch(() => ({}));
-
-        // Archivos pesados: redirigir directo a Drive (rapido, no satura el server).
-        // Requiere que ese archivo este compartido como "cualquiera con el enlace".
-        if (meta.size && Number(meta.size) > DESCARGA_PROXY_MAX_MB * 1024 * 1024) {
-            await sql`UPDATE descargas SET descargas_restantes = descargas_restantes - 1 WHERE token = ${token}`
-                .catch(e => console.error('No se pudo descontar descarga:', e.message));
-            return res.redirect(302, `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`);
-        }
-
-        const fileRes = await drive.getFileResponse(fileId);
-
-        const nombreBase = (pr[0].nombre || 'archivo').trim().replace(/[^\w\-]+/g, '_') || 'archivo';
-        const ext = (meta.name && meta.name.includes('.')) ? meta.name.split('.').pop() : 'stl';
-        const filename = `${nombreBase}.${ext}`;
-
-        res.setHeader('Content-Type', meta.mimeType || 'application/octet-stream');
-        if (meta.size) res.setHeader('Content-Length', meta.size);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-
-        // Descontar un cupo solo si la descarga se completa
-        res.on('finish', () => {
-            sql`UPDATE descargas SET descargas_restantes = descargas_restantes - 1 WHERE token = ${token}`
-                .catch(e => console.error('No se pudo descontar descarga:', e.message));
-        });
-
-        Readable.fromWeb(fileRes.body).pipe(res);
-    } catch (err) {
-        console.error('Descarga error:', err);
-        if (!res.headersSent) res.status(500).send('Error al descargar el archivo. Probá de nuevo más tarde.');
-    }
-});
-
 app.post('/api/ml/webhook', async (req, res) => {
     try {
         const { topic, resource, user_id } = req.body;
@@ -1011,10 +965,9 @@ app.post('/api/ml/webhook', async (req, res) => {
                 const mlItemId = item.item.id;
                 const cant = Math.max(1, parseInt(item.quantity) || 1);
                 const precio = item.unit_price || 0;
-                const { rows } = await sql`SELECT id, nombre, es_digital, drive_file_id FROM proyectos WHERE ml_id LIKE '%' || ${mlItemId} || '%'`;
+                const { rows } = await sql`SELECT id, nombre FROM proyectos WHERE ml_id LIKE '%' || ${mlItemId} || '%'`;
                 if (rows.length) {
-                    const proy = rows[0];
-                    const pId = proy.id;
+                    const pId = rows[0].id;
                     await sql`UPDATE proyectos SET cantidad = GREATEST(0, cantidad - ${cant}) WHERE id = ${pId}`;
                     const ventaId = Date.now().toString() + Math.random().toString(36).slice(2, 6);
                     const fecha = new Date().toISOString().split('T')[0];
@@ -1023,9 +976,6 @@ app.post('/api/ml/webhook', async (req, res) => {
                         VALUES (${ventaId}, ${pId}, ${cant}, ${precio}, 0, ${precio * cant}, ${fecha})
                     `;
                     console.log(`Venta ML auto-registrada: ${mlItemId} x${cant} -> proyecto ${pId}`);
-                    // Nota: la entrega del archivo digital es manual (ML bloquea el envio
-                    // de mensajes con links por API). El vendedor copia el link del producto
-                    // desde el panel y lo pega en el chat de ML. Ver /api/proyectos/:id/download-link
                 }
             }
         }

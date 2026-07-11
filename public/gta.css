@@ -242,13 +242,6 @@ body::before {
     font-weight: 600;
 }
 
-.badge-stl-card { background: var(--vice-grad); color: #fff; }
-.badge-stl-ficha {
-    background: rgba(255, 45, 124, 0.12);
-    border-color: rgba(255, 45, 124, 0.4);
-    color: #ffb3d1;
-}
-
 /* Botones de WhatsApp y ML integrados a la paleta: fondo oscuro translúcido,
    el color de marca queda solo como acento en el borde, texto e ícono */
 .btn-whatsapp, .producto-cta-whatsapp, .carrito-enviar {

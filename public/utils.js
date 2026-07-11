@@ -199,16 +199,15 @@ function renderProductoCard(p, i) {
     const img = fotoOk
         ? `<img src="${escapeHTML(foto)}" alt="${escapeHTML(p.nombre)}" loading="${eager ? 'eager' : 'lazy'}" ${eager ? 'fetchpriority="high"' : ''} decoding="async" onload="quitarFondoBlanco(this)" onerror="imgFallback(this)">`
         : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
-    const badgeDigital = p.es_digital ? '<span class="badge-stl-card">Archivo digital</span>' : '';
     const cant = parseInt(p.cantidad) || 0;
-    const sinStock = !p.es_digital && cant <= 0;
+    const sinStock = cant <= 0;
     const precio = parseFloat(p.precioventa) || 0;
     const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en el catálogo.`);
     const mlUrl = urlML(p.ml_id);
     return `
         <article class="product-card">
             <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
-                <div class="product-img">${badgeDigital}${img}</div>
+                <div class="product-img">${img}</div>
                 <div class="product-body">
                     ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
                     <h2 class="product-title">${escapeHTML(p.nombre)}</h2>
@@ -219,7 +218,7 @@ function renderProductoCard(p, i) {
                     </div>` : ''}
                     ${coloresChips(p.colores)}
                     <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                        ${p.es_digital ? 'Entrega digital' : sinStock ? 'Sin stock' : `${cant} disponible${cant !== 1 ? 's' : ''}`}
+                        ${sinStock ? 'Sin stock' : `${cant} disponible${cant !== 1 ? 's' : ''}`}
                     </div>
                 </div>
             </a>

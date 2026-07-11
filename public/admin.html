@@ -92,22 +92,12 @@
                             <input type="text" id="categoria" list="catList" placeholder="Ej: Prototipos...">
                             <datalist id="catList"></datalist>
                         </label>
-                        <label>Link al archivo <input type="url" id="linkArchivo" placeholder="https://..."></label>
                         <label class="field-half">Costo ($) <input type="number" id="costo" step="0.01" placeholder="De producción"></label>
                         <label class="field-half">Precio venta ($) <input type="number" id="precioVenta" step="0.01" placeholder="Al que se vende"></label>
                         <label class="field-half">Vendidos <input type="number" id="vendidos" step="1" placeholder="Cantidad vendida"></label>
                         <label class="field-half">Stock en tienda <input type="number" id="cantidad" step="1" placeholder="0 = sin stock"></label>
                         <label>ID Mercado Libre <input type="text" id="mlId" placeholder="Ej: MLA1234567890 (opcional)"></label>
                         <label class="checkbox-label"><input type="checkbox" id="destacadoCheck"> Destacar en la página principal (Más vendidos)</label>
-                        <label class="checkbox-label"><input type="checkbox" id="esDigitalCheck"> Producto digital (archivo para descargar)</label>
-                        <label>ID o link del archivo en Google Drive <input type="text" id="driveFileId" placeholder="Pegá el ID o el link del archivo en tu Drive"></label>
-                        <div id="downloadCopyRow" class="hidden">
-                            <label>Mensaje + link para enviarle al comprador
-                                <textarea id="downloadMsg" rows="9" readonly class="field-textarea"></textarea>
-                            </label>
-                            <button type="button" class="btn-primary" onclick="copiarMensajeDescarga()">Copiar mensaje + link</button>
-                            <p class="muted" style="margin-top:6px;">Pegalo en el chat de Mercado Libre cuando te compren.</p>
-                        </div>
                         <label>Fotos (URLs, separadas por comas) <input type="text" id="fotos" placeholder="https://..., https://..."></label>
                         <label>Descripción <textarea id="descripcion" rows="3" class="field-textarea" placeholder="Materiales, medidas, colores disponibles..."></textarea></label>
                         <label>Estado
@@ -124,6 +114,10 @@
                         </div>
                     </form>
                 </div>
+            </div>
+
+            <div id="detalleOverlay" class="overlay hidden">
+                <div class="modal modal-detalle" id="detalleModal"></div>
             </div>
 
             <div id="catOverlay" class="overlay hidden">
@@ -233,7 +227,6 @@
                     </div>
                     <span class="proy-count" id="proyCount"></span>
                     <div class="proy-toolbar-right">
-                        <button id="btnFiltroDigital" class="btn-sm" onclick="toggleSoloDigitales()">Solo digitales</button>
                         <button class="btn-sm" onclick="abrirCargaMasiva()">Carga masiva</button>
                         <button class="btn-sm" onclick="exportarProyectosCSV()" title="Descargar lo que se ve en la tabla como CSV">Exportar CSV</button>
                     </div>
@@ -245,7 +238,7 @@
                             <th data-sort="nombre" title="Ordenar por nombre">Nombre</th>
                             <th data-sort="codigo" title="Ordenar por código">Código</th>
                             <th data-sort="categoria" title="Ordenar por categoría">Categoría</th>
-                            <th>Link Archivo</th>
+                            <th>Archivos</th>
                             <th data-sort="costo" title="Ordenar por costo">Costo</th>
                             <th data-sort="precioventa" title="Ordenar por precio">Precio Vta</th>
                             <th data-sort="vendidos" title="Ordenar por vendidos">Vend.</th>

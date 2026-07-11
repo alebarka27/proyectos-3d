@@ -41,16 +41,23 @@ a `PUBLIC_PATHS` en `api/index.js` o los visitantes sin sesión no lo van a pode
 
 Tres tablas, creadas automáticamente al arrancar:
 
-- **proyectos**: id, nombre, codigo, categoria, linkarchivo, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado
+- **proyectos**: id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, colores, colorfotos, archivos
 - **categorias**: nombre (PK)
 - **ventas**: id, proyectoid, proyectonombre, cantidad, precioventa, costo, ganancia, fecha
+
+`archivos` guarda un JSON `[{nombre, url}]` con los links a los archivos de
+impresión de cada modelo (STL/3MF/gcode, normalmente en Drive). Se administran
+desde la vista de detalle del admin (se abre al hacer click en una fila de la
+tabla de proyectos). Las columnas `linkarchivo`, `es_digital` y `drive_file_id`
+son legado de cuando se vendían STL (ya no se venden): se conservan los datos
+pero nada las usa; al arrancar se migran a `archivos` si esta está vacía.
 
 Al arrancar por primera vez, migra datos desde `proyectos.json` si existe y la DB está vacía.
 
 **Importante**: la API devuelve las filas tal cual salen de Postgres, con nombres de
-columna en minúsculas (`precioventa`, `linkarchivo`, `proyectonombre`, `publicareshop`).
+columna en minúsculas (`precioventa`, `proyectonombre`, `publicareshop`).
 En el frontend hay que leer esos nombres en minúsculas. El camelCase (`precioVenta`,
-`linkArchivo`) solo se usa en los *bodies* que el frontend envía a la API (POST/PUT).
+`mlId`) solo se usa en los *bodies* que el frontend envía a la API (POST/PUT).
 
 ## Rutas API principales
 

@@ -56,9 +56,12 @@ async function cargar() {
         renderSidebar();
         renderTabla();
         checkMLStatus();
+        if (detalleId) renderDetalle();
     }
 
-    cambiarVista(authed ? 'dashboard' : 'tienda');
+    // Tras una acción (guardar, vender, etc.) se recarga quedándose en la vista
+    // actual; solo la primera carga elige la vista inicial.
+    cambiarVista(vistaActual || (authed ? 'dashboard' : 'tienda'));
 }
 
 function renderSidebar() {
@@ -330,7 +333,6 @@ function proyectosFiltrados() {
             return hay.includes(proySearchTerm);
         });
     }
-    if (soloDigitales) filtrados = filtrados.filter(p => p.es_digital);
     if (sortCol && SORT_GETTERS[sortCol]) {
         const get = SORT_GETTERS[sortCol];
         filtrados = [...filtrados].sort((a, b) => {
@@ -375,15 +377,13 @@ function renderTabla() {
         const vend = parseInt(p.vendidos) || 0;
         const stock = parseInt(p.cantidad) || 0;
         const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
+        const archivos = parseArchivos(p);
         return `
-            <tr>
-                <td data-label="Nombre">${escapeHTML(p.nombre)}${digitalBadges(p)}</td>
+            <tr data-id="${p.id}" class="proy-row" title="Ver detalle del proyecto">
+                <td data-label="Nombre">${escapeHTML(p.nombre)}</td>
                 <td data-label="Código">${escapeHTML(p.codigo)}</td>
                 <td data-label="Categoría">${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : '-'}</td>
-                <td data-label="Link Archivo">${[
-                    p.linkarchivo ? `<a href="${escapeHTML(safeHref(p.linkarchivo))}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Archivo</a>` : '',
-                    p.drive_file_id ? `<a href="https://drive.google.com/file/d/${escapeHTML(p.drive_file_id)}/view" target="_blank" rel="noopener noreferrer" title="Abrir en Google Drive">${icon('link-external')} Drive</a>` : ''
-                ].filter(Boolean).join(' ') || '-'}</td>
+                <td data-label="Archivos">${archivos.length ? `<span class="arch-count">${icon('link-external')} ${archivos.length}</span>` : '-'}</td>
                 <td data-label="Costo">${costo ? '$'+formatearPrecio(costo) : '-'}</td>
                 <td data-label="Precio Vta">${pv ? '$'+formatearPrecio(pv) : '-'}</td>
                 <td data-label="Vend.">${vend || '-'}</td>
@@ -431,7 +431,6 @@ document.getElementById('btnNuevo').onclick = () => {
     document.getElementById('formTitle').textContent = 'Nuevo Proyecto';
     document.getElementById('projectForm').reset();
     document.getElementById('editId').value = '';
-    document.getElementById('downloadCopyRow').classList.add('hidden');
     document.getElementById('formOverlay').classList.remove('hidden');
 };
 
@@ -446,7 +445,6 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         nombre: document.getElementById('nombre').value,
         codigo: document.getElementById('codigo').value,
         categoria: document.getElementById('categoria').value,
-        linkArchivo: document.getElementById('linkArchivo').value,
         costo: document.getElementById('costo').value,
         precioVenta: document.getElementById('precioVenta').value,
         vendidos: document.getElementById('vendidos').value,
@@ -457,8 +455,6 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         descripcion: document.getElementById('descripcion').value,
         destacado: document.getElementById('destacadoCheck').checked,
         publicarEshop: document.getElementById('publicarEshop').checked,
-        esDigital: document.getElementById('esDigitalCheck').checked,
-        driveFileId: document.getElementById('driveFileId').value.trim(),
     };
     // Aviso de precio inconsistente (se puede guardar igual, pero a propósito)
     const costoNum = parseFloat(data.costo) || 0;
@@ -492,7 +488,6 @@ async function editar(id) {
     document.getElementById('nombre').value = p.nombre;
     document.getElementById('codigo').value = p.codigo;
     document.getElementById('categoria').value = p.categoria || '';
-    document.getElementById('linkArchivo').value = p.linkarchivo || '';
     document.getElementById('costo').value = p.costo || '';
     document.getElementById('precioVenta').value = p.precioventa || '';
     document.getElementById('vendidos').value = p.vendidos || '';
@@ -501,37 +496,9 @@ async function editar(id) {
     document.getElementById('fotos').value = p.fotos || '';
     document.getElementById('descripcion').value = p.descripcion || '';
     document.getElementById('destacadoCheck').checked = !!p.destacado;
-    document.getElementById('esDigitalCheck').checked = !!p.es_digital;
-    document.getElementById('driveFileId').value = p.drive_file_id || '';
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
-    actualizarCopyDescarga(p);
     document.getElementById('formOverlay').classList.remove('hidden');
-}
-
-// Trae (o crea) el link de descarga del producto y muestra el mensaje listo para copiar.
-async function actualizarCopyDescarga(p) {
-    const row = document.getElementById('downloadCopyRow');
-    if (!p || !p.es_digital || !p.drive_file_id) { row.classList.add('hidden'); return; }
-    try {
-        const res = await apiFetch(`${API_PROY}/${p.id}/download-link`);
-        const data = await res.json();
-        if (data.disponible && data.mensaje) {
-            document.getElementById('downloadMsg').value = data.mensaje;
-            row.classList.remove('hidden');
-        } else {
-            row.classList.add('hidden');
-        }
-    } catch { row.classList.add('hidden'); }
-}
-
-function copiarMensajeDescarga() {
-    const txt = document.getElementById('downloadMsg').value;
-    if (!txt) return;
-    navigator.clipboard.writeText(txt).then(
-        () => showToast('Mensaje + link copiado', 'success'),
-        () => showToast('No se pudo copiar', 'error')
-    );
 }
 
 async function eliminar(id) {
@@ -555,23 +522,189 @@ async function marcarVendido(id) {
     cargar();
 }
 
-/* --- Productos digitales / publicar en ML / carga masiva --- */
+/* --- Detalle de proyecto (se abre al tocar una fila) ---
+   Muestra toda la info del proyecto y permite administrar la lista de
+   archivos para imprimir el modelo (links con nombre, p. ej. a Drive). */
 
-let soloDigitales = false;
+let detalleId = null;
 
-function toggleSoloDigitales() {
-    soloDigitales = !soloDigitales;
-    const btn = document.getElementById('btnFiltroDigital');
-    if (btn) btn.classList.toggle('btn-eshop-on', soloDigitales);
+// La columna `archivos` guarda un JSON [{nombre, url}]; parse defensivo.
+function parseArchivos(p) {
+    try {
+        const lista = JSON.parse(p.archivos || '[]');
+        return Array.isArray(lista) ? lista.filter(a => a && a.url) : [];
+    } catch { return []; }
+}
+
+// Body camelCase para PUT a partir de una fila de la DB (nombres en minúsculas).
+function bodyDesdeProyecto(p) {
+    return {
+        nombre: p.nombre, codigo: p.codigo, categoria: p.categoria,
+        costo: p.costo, precioVenta: p.precioventa, vendidos: p.vendidos,
+        cantidad: p.cantidad, mlId: p.ml_id, fotos: p.fotos,
+        estado: p.estado, descripcion: p.descripcion,
+        destacado: !!p.destacado, publicarEshop: !!p.publicareshop,
+    };
+}
+
+function abrirDetalle(id) {
+    detalleId = id;
+    if (!renderDetalle()) return;
+    document.getElementById('detalleOverlay').classList.remove('hidden');
+}
+
+function cerrarDetalle() {
+    detalleId = null;
+    document.getElementById('detalleOverlay').classList.add('hidden');
+}
+
+function renderDetalle() {
+    const p = todosProyectos.find(x => x.id === detalleId);
+    if (!p) { cerrarDetalle(); return false; }
+
+    const fotos = fotosArray(p.fotos).map(mlHighResImage);
+    const galeria = fotos.length ? `
+        <div class="det-gallery-main"><img id="detFotoMain" src="${escapeHTML(safeHref(fotos[0]))}" alt="${escapeHTML(p.nombre)}" onerror="imgFallback(this)"></div>
+        ${fotos.length > 1 ? `<div class="det-thumbs">${fotos.map((f, i) =>
+            `<img src="${escapeHTML(safeHref(f))}" class="${i === 0 ? 'active' : ''}" alt="Foto ${i + 1}" onclick="detalleCambiarFoto(this, '${escapeHTML(safeHref(f))}')" onerror="this.remove()">`).join('')}</div>` : ''}`
+        : `<div class="det-gallery-main"><div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div></div>`;
+
+    const costo = parseFloat(p.costo) || 0;
+    const pv = parseFloat(p.precioventa) || 0;
+    const stock = parseInt(p.cantidad) || 0;
+    const estadoClase = ESTADOS_VALIDOS.includes(p.estado) ? p.estado : 'Planificado';
+    const mlUrl = urlML(p.ml_id);
+    const archivos = parseArchivos(p);
+
+    const dato = (label, valor) => `<div class="det-item"><span class="det-label">${label}</span><span class="det-value">${valor}</span></div>`;
+
+    document.getElementById('detalleModal').innerHTML = `
+        <div class="det-header">
+            <div>
+                <h2>${escapeHTML(p.nombre)}</h2>
+                <div class="det-header-badges">
+                    <span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado || 'Planificado')}</span>
+                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
+                    ${p.destacado ? '<span class="cat-badge">★ Destacado</span>' : ''}
+                </div>
+            </div>
+            <button class="btn-sm det-cerrar" onclick="cerrarDetalle()" title="Cerrar">${icon('close')}</button>
+        </div>
+        <div class="det-body">
+            <div class="det-gallery">${galeria}</div>
+            <div class="det-info">
+                <div class="det-grid">
+                    ${dato('Código', escapeHTML(p.codigo || '-'))}
+                    ${dato('Fecha', escapeHTML(p.fecha || '-'))}
+                    ${dato('Costo', costo ? '$' + formatearPrecio(costo) : '-')}
+                    ${dato('Precio venta', pv ? '$' + formatearPrecio(pv) : '-')}
+                    ${dato('Ganancia por unidad', pv || costo ? '$' + formatearPrecio(pv - costo) : '-')}
+                    ${dato('Stock', stockPill(p))}
+                    ${dato('Vendidos', parseInt(p.vendidos) || 0)}
+                    ${dato('En la tienda', p.publicareshop ? '<span class="text-verde">Sí, publicado</span>' : 'No')}
+                    ${dato('Mercado Libre', mlUrl ? `<a href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('link-external')} Ver publicación</a>` : 'No publicado')}
+                </div>
+                ${p.descripcion ? `<div class="det-desc"><span class="det-label">Descripción</span><p>${escapeHTML(p.descripcion).replace(/\n/g, '<br>')}</p></div>` : ''}
+            </div>
+        </div>
+        <div class="det-archivos">
+            <h3>${icon('printer')} Archivos para imprimir <span class="proy-count">${archivos.length || 'ninguno'}</span></h3>
+            ${archivos.length ? `<div class="arch-lista">${archivos.map((a, i) => `
+                <div class="arch-item">
+                    <a href="${escapeHTML(safeHref(a.url))}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(a.url)}">${icon('link-external')} ${escapeHTML(a.nombre || a.url)}</a>
+                    <div class="arch-item-btns">
+                        <button class="btn-sm" title="Copiar link" onclick="copiarLinkArchivo(${i})">${icon('clipboard')}</button>
+                        <button class="btn-sm btn-peligro" title="Quitar de la lista" onclick="eliminarArchivo(${i})">${icon('trash')}</button>
+                    </div>
+                </div>`).join('')}</div>`
+            : `<p class="muted">Guardá acá los links a los archivos del modelo (STL, 3MF, gcode) — por ejemplo los de tu Drive.</p>`}
+            <div class="arch-add">
+                <input type="text" id="archNombre" placeholder="Nombre (ej: STL base, gcode 0.2mm)">
+                <input type="url" id="archUrl" placeholder="Link al archivo (Drive, etc.)">
+                <button class="btn-primary" onclick="agregarArchivo()">${icon('plus')} Agregar</button>
+            </div>
+        </div>
+        <div class="det-actions">
+            <button class="btn-primary" onclick="cerrarDetalle(); editar('${p.id}')">${icon('pencil')} Editar</button>
+            ${stock > 0 ? `<button class="btn-secondary" onclick="venderRapido('${p.id}')">${icon('cart')} Venta rápida</button>` : ''}
+            <button class="btn-secondary" onclick="duplicarProyecto('${p.id}')">${icon('clipboard')} Duplicar</button>
+            <button class="btn-secondary btn-peligro" onclick="eliminar('${p.id}')">${icon('trash')} Eliminar</button>
+        </div>`;
+    return true;
+}
+
+function detalleCambiarFoto(el, src) {
+    const main = document.getElementById('detFotoMain');
+    if (main) main.src = src;
+    document.querySelectorAll('.det-thumbs img').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+}
+
+// Guarda la lista de archivos vía PUT y actualiza la copia local del proyecto.
+async function guardarArchivos(p, lista) {
+    const body = { ...bodyDesdeProyecto(p), archivos: lista };
+    const res = await apiFetch(`${API_PROY}/${p.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'No se pudo guardar el archivo', 'error');
+        return false;
+    }
+    const actualizado = await res.json();
+    const idx = todosProyectos.findIndex(x => x.id === p.id);
+    if (idx !== -1) todosProyectos[idx] = actualizado;
+    renderDetalle();
     renderTabla();
+    return true;
 }
 
-// Etiqueta para productos digitales. Solo dice "Digital": el estado del archivo
-// y de ML ya se ve en las columnas Link Archivo y ML de la misma fila.
-function digitalBadges(p) {
-    if (!p.es_digital) return '';
-    return ' <span class="dbadge badge-digital">Digital</span>';
+async function agregarArchivo() {
+    const p = todosProyectos.find(x => x.id === detalleId);
+    if (!p) return;
+    const nombre = document.getElementById('archNombre').value.trim();
+    const url = document.getElementById('archUrl').value.trim();
+    if (!url) { showToast('Pegá el link al archivo', 'error'); return; }
+    if (!/^https?:\/\//i.test(url)) { showToast('El link tiene que empezar con http:// o https://', 'error'); return; }
+    const lista = [...parseArchivos(p), { nombre: nombre || 'Archivo', url }];
+    if (await guardarArchivos(p, lista)) showToast('Archivo agregado', 'success');
 }
+
+async function eliminarArchivo(i) {
+    const p = todosProyectos.find(x => x.id === detalleId);
+    if (!p) return;
+    const lista = parseArchivos(p);
+    const arch = lista[i];
+    if (!arch) return;
+    if (!(await showConfirm(`¿Quitar "${arch.nombre || arch.url}" de la lista? El archivo en sí no se borra, solo el link.`, { danger: true, confirmLabel: 'Quitar' }))) return;
+    lista.splice(i, 1);
+    if (await guardarArchivos(p, lista)) showToast('Link quitado', 'success');
+}
+
+function copiarLinkArchivo(i) {
+    const p = todosProyectos.find(x => x.id === detalleId);
+    const arch = p && parseArchivos(p)[i];
+    if (!arch) return;
+    navigator.clipboard.writeText(arch.url).then(
+        () => showToast('Link copiado', 'success'),
+        () => showToast('No se pudo copiar', 'error')
+    );
+}
+
+// Toda la fila abre el detalle, salvo que el click sea en un botón o link.
+document.getElementById('tbody').addEventListener('click', e => {
+    if (e.target.closest('button, a')) return;
+    const tr = e.target.closest('tr[data-id]');
+    if (tr) abrirDetalle(tr.dataset.id);
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && detalleId) cerrarDetalle();
+});
+
+/* --- Publicar en ML / carga masiva --- */
 
 let publicarMLId = null;
 
@@ -891,7 +1024,7 @@ function renderDashboard() {
 
     // Alertas de stock: publicados en la tienda con stock agotado o bajo (≤ 2)
     const alertas = todosProyectos
-        .filter(p => p.publicareshop && !p.es_digital && (parseInt(p.cantidad) || 0) <= 2)
+        .filter(p => p.publicareshop && (parseInt(p.cantidad) || 0) <= 2)
         .sort((a, b) => (parseInt(a.cantidad) || 0) - (parseInt(b.cantidad) || 0));
     const alertBox = document.getElementById('dashAlertas');
     if (alertBox) {
@@ -942,7 +1075,11 @@ function filtrarProyectos() {
     renderTabla();
 }
 
+let vistaActual = '';
+
 function cambiarVista(vista) {
+    const repetida = vista === vistaActual;
+    vistaActual = vista;
     const etiquetas = { dashboard: 'Dashboard', tienda: 'Tienda', proyectos: 'Proyectos', ventas: 'Ventas', calculadora: 'Calculadora' };
     document.querySelectorAll('.tab').forEach(t => {
         t.classList.toggle('tab-activo', t.textContent.includes(etiquetas[vista]));
@@ -959,9 +1096,9 @@ function cambiarVista(vista) {
     if (vista === 'calculadora') calcularPrecio();
     if (vista === 'proyectos') renderTabla();
     
-    // Add animation
+    // Animación de entrada solo al cambiar de vista (no al recargar la misma)
     const vistaEl = document.getElementById('vista' + vista.charAt(0).toUpperCase() + vista.slice(1));
-    if (vistaEl) {
+    if (vistaEl && !repetida) {
         vistaEl.classList.remove('view-enter');
         void vistaEl.offsetWidth;
         vistaEl.classList.add('view-enter');

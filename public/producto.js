@@ -28,9 +28,7 @@ async function cargarProducto() {
         document.title = `${p.nombre} — 3D by Aurora`;
 
         const fotos = fotosArray(p.fotos).map(mlHighResImage);
-        const esDigital = !!p.es_digital;
-        // Un archivo digital nunca se agota
-        const sinStock = !esDigital && (!p.cantidad || p.cantidad <= 0);
+        const sinStock = !p.cantidad || p.cantidad <= 0;
         const precio = parseFloat(p.precioventa) || 0;
         const mlUrl = urlML(p.ml_id);
         productoNombre = p.nombre;
@@ -62,10 +60,7 @@ async function cargarProducto() {
             <div class="producto-layout">
                 <div class="producto-gallery">${galeriaHTML}</div>
                 <div class="producto-info">
-                    ${p.categoria || esDigital ? `<div>
-                        ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
-                        ${esDigital ? '<span class="badge-stl-ficha">Archivo digital (STL)</span>' : ''}
-                    </div>` : ''}
+                    ${p.categoria ? `<div><span class="cat-badge">${escapeHTML(p.categoria)}</span></div>` : ''}
                     <h1>${escapeHTML(p.nombre)}</h1>
                     ${precio ? `
                     <div class="producto-precio">
@@ -74,7 +69,6 @@ async function cargarProducto() {
                     </div>` : ''}
                     <div class="producto-stock ${sinStock ? 'stock-no' : 'stock-ok'}">
                         ${sinStock ? `${icon('close')} Agotado`
-                            : esDigital ? `${icon('check')} Entrega digital — recibís el archivo para descargar tras la compra`
                             : `${icon('check')} ${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
                     </div>
                     ${colores.length ? `
