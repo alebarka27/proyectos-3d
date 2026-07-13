@@ -24,6 +24,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body { height: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
     font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -1425,25 +1426,112 @@ td a:hover { text-decoration: underline; }
 
 @media (max-width: 768px) {
     .layout { flex-direction: column; }
+
+    /* Barra superior en dos filas: marca + sesión arriba, carpetas abajo */
     .sidebar {
         width: 100%;
         flex-direction: row;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
+        gap: 8px 10px;
         padding: 10px 12px;
         border-right: none;
         border-bottom: 1px solid var(--border);
-        overflow-x: auto;
     }
     .sidebar-brand { padding: 0; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 0; margin-left: auto; padding: 0; border: none; display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+    .sidebar-footer .sidebar-auth { display: contents; }
+    .btn-ir-tienda-sidebar { margin-bottom: 0; flex-shrink: 0; width: auto; padding: 6px 10px; font-size: 12px; }
+    .sidebar-ml-status { margin-bottom: 0; padding: 6px 8px; }
+    #mlLabel { display: none; }
+    .btn-logout { width: auto; padding: 6px 10px; font-size: 12px; }
+
+    /* Carpetas: fila deslizable a lo ancho, segunda línea */
+    .sidebar > .sidebar-auth { order: 3; width: 100%; display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+    .sidebar > .sidebar-auth::-webkit-scrollbar { display: none; }
     .sidebar-header { padding: 0; flex-shrink: 0; }
     .sidebar-title { display: none; }
     #listaCarpetas { display: flex; gap: 6px; flex-shrink: 0; }
-    .carpeta { flex-shrink: 0; white-space: nowrap; border-radius: var(--radius-sm); border-right: none; }
-    .carpeta-activa { border: 1px solid var(--border-strong); border-right: none; }
-    .sidebar-footer { margin-top: 0; margin-left: auto; padding: 0; border: none; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
-    .btn-ir-tienda-sidebar { margin-bottom: 0; flex-shrink: 0; width: auto; }
-    .main-content { padding: 18px; }
+    .carpeta { flex-shrink: 0; white-space: nowrap; border-radius: var(--radius-sm); border-right: none; padding: 7px 12px; }
+    .carpeta-activa { border: 1px solid var(--border-strong); }
+
+    .main-content { padding: 16px 14px calc(84px + env(safe-area-inset-bottom)); }
+
+    /* Nada genera scroll horizontal (el sol del hero, tooltips, etc.) */
+    body { overflow-x: clip; }
+
+    /* En iOS, enfocar un input de menos de 16px hace zoom automático */
+    input, select, textarea { font-size: 16px !important; }
+
+    /* Páginas públicas: menos padding lateral */
+    .eshop-body { padding: 16px 14px 48px; }
+    .producto-body { padding: 16px 14px 48px; }
+    .faq-body, .nosotros-body { padding: 20px 14px 48px; }
+
+    /* Tabs del admin → barra de navegación fija abajo, como una app */
+    .top-bar .tabs {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        z-index: 950;
+        justify-content: space-around;
+        gap: 2px;
+        padding: 6px 6px calc(8px + env(safe-area-inset-bottom));
+        border: none;
+        border-top: 1px solid var(--border);
+        border-radius: 0;
+        background: rgba(19, 19, 19, 0.97);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .top-bar .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex: 1 1 0; min-width: 54px; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+    .tab .icon { width: 19px; height: 19px; }
+    .top-bar { margin-bottom: 14px; }
+    /* "Nuevo Proyecto" a lo ancho (los tabs ya no están en la fila) */
+    .top-bar > .btn-primary { width: 100%; padding: 12px; }
+    /* El flotante de WhatsApp del admin chocaría con la barra: afuera */
+    .admin-body .whatsapp-float { display: none; }
+
+    /* Toolbars de vistas: select y botones cómodos, a lo ancho */
+    .ventas-toolbar { width: 100%; }
+    .ventas-toolbar .select-periodo { flex: 1; min-width: 0; padding: 10px 12px; }
+    .proy-search { flex-basis: 100%; max-width: 100%; }
+    .proy-toolbar-right { flex-wrap: wrap; }
+
+    /* Botones chicos con más área táctil */
+    .btn-sm { padding: 8px 12px; }
+
+    /* Tarjetas-fila: el nombre como encabezado de la tarjeta */
+    td[data-label="Nombre"], td[data-label="Proyecto"] { justify-content: flex-start; text-align: left; font-size: 14px; font-weight: 600; background: var(--surface-2); }
+    td[data-label="Nombre"]::before, td[data-label="Proyecto"]::before { display: none; }
+
+    /* Dashboard compacto: acciones 2x2 y tarjetas con menos aire */
+    .dash-card { padding: 16px 18px; }
+    .dash-card-icon { width: 34px; height: 34px; margin-bottom: 10px; }
+    .dash-action-btn { flex-direction: column; text-align: center; gap: 8px; padding: 14px 10px; font-size: 12.5px; }
+
+    /* Encargos: acciones repartidas a lo ancho */
+    .enc-card { padding: 14px; }
+    .enc-card-acciones { gap: 8px; }
+    .enc-card-acciones .btn-sm { flex: 1 1 auto; }
+
+    .calc-form { padding: 18px 14px; }
+    .calc-precio-sugerencias { flex-wrap: wrap; }
+
+    /* Stats en dos columnas compactas */
+    .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-card { padding: 14px 16px; }
+    .stat-value { font-size: 20px; }
+
+    /* Modales casi a pantalla completa */
+    .overlay { padding: 10px; }
+    .modal { width: 100%; padding: 22px 16px; max-height: calc(100dvh - 20px); }
+
+    /* Toasts ocupan el ancho disponible; en el admin, arriba de la barra inferior */
+    .toast-container { left: 12px; right: 12px; max-width: none; bottom: calc(12px + env(safe-area-inset-bottom)); }
+    .admin-body .toast-container { bottom: calc(78px + env(safe-area-inset-bottom)); }
     .calc-grid { grid-template-columns: 1fr; }
     .precio-monto { font-size: 22px; }
 
@@ -1500,13 +1588,12 @@ td a:hover { text-decoration: underline; }
     .faq-container h1 { font-size: 22px; }
 
     /* Whatsapp float */
-    .whatsapp-float { width: 48px; height: 48px; bottom: 16px; right: 16px; }
+    .whatsapp-float { width: 48px; height: 48px; bottom: calc(16px + env(safe-area-inset-bottom)); right: 16px; }
     .whatsapp-float svg { width: 24px; height: 24px; }
     
     .dashboard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .dash-card-value { font-size: 22px; }
-    .dash-actions { grid-template-columns: 1fr; }
-    .proy-search { max-width: 100%; }
+    .dash-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 
 @media (max-width: 480px) {
@@ -1514,7 +1601,11 @@ td a:hover { text-decoration: underline; }
     .home-hero-content { padding: 28px 20px; }
     .producto-cta-whatsapp { font-size: 15px; padding: 14px 18px; }
     .producto-cta-ml { font-size: 13px; padding: 10px 16px; }
-    .public-nav { flex-direction: column; align-items: flex-start; }
+    /* La nav queda en una fila compacta, sin apilarse */
+    .public-nav { gap: 8px; }
+    .public-nav-brand { font-size: 14.5px; gap: 8px; }
+    .public-nav-links { gap: 2px; }
+    .public-nav-links a { padding: 6px 9px; font-size: 12.5px; }
     .nosotros-card { padding: 20px; }
     .dashboard-grid { grid-template-columns: 1fr; }
 }
@@ -1575,6 +1666,11 @@ td a:hover { text-decoration: underline; }
 
 /* Que los botones de la columna Acciones no se partan en dos líneas */
 td[data-label="Acciones"] { white-space: nowrap; }
+
+/* ...pero en el celular (tabla → tarjetas) sí pueden envolver */
+@media (max-width: 768px) {
+    td[data-label="Acciones"] { white-space: normal; flex-wrap: wrap; }
+}
 
 /* En pantallas chicas los forms de modal vuelven a una columna */
 @media (max-width: 480px) {
@@ -1658,6 +1754,9 @@ td[data-label="Acciones"] { white-space: nowrap; }
     .det-grid { grid-template-columns: 1fr 1fr; }
     .arch-add { flex-direction: column; }
     .arch-add input { min-width: 0; }
+    .det-header, .det-body, .det-archivos, .det-ficha { padding-left: 16px; padding-right: 16px; }
+    .det-actions { padding: 14px 16px 18px; }
+    .det-actions > * { flex: 1; }
 }
 
 /* --- Calculadora: extras y precio de venta --- */
@@ -1810,3 +1909,31 @@ td[data-label="Acciones"] { white-space: nowrap; }
 .dash-bar-tip strong { color: var(--text); font-size: 12.5px; }
 .dash-bar-tip span { display: inline-flex; align-items: center; gap: 6px; }
 .dash-bar-col:hover .dash-bar-tip, .dash-bar-col:focus .dash-bar-tip { display: flex; }
+
+/* --- Móvil: gráfico de ventas más compacto --- */
+
+@media (max-width: 768px) {
+    .dash-chart { gap: 8px; }
+    .dash-bar-col { max-width: none; }
+    .dash-bar-total { font-size: 10px; }
+}
+@media (max-width: 480px) {
+    /* Los totales por barra no entran: quedan en el tooltip (tap en la barra) */
+    .dash-bar-total { display: none; }
+}
+
+/* --- Móvil: catálogo en dos columnas compactas (tienda pública y admin) --- */
+
+@media (max-width: 640px) {
+    .eshop-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .product-body { padding: 12px 12px 14px; gap: 6px; }
+    .product-title { font-size: 13.5px; }
+    .precio-simbolo { font-size: 13px; line-height: 1.7; }
+    .precio-monto { font-size: 22px; letter-spacing: -0.8px; }
+    .product-stock { font-size: 11.5px; }
+    .swatch { width: 12px; height: 12px; }
+    /* Los botones apilados: lado a lado no entra el texto en media pantalla */
+    .product-botones { flex-direction: column; gap: 6px; }
+    .btn-whatsapp, .btn-ml { padding: 9px 8px; font-size: 12.5px; }
+    .btn-add-carrito { font-size: 12px; padding: 8px; }
+}
