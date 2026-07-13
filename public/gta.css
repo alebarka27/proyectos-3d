@@ -1,490 +1,458 @@
 /* ============================================================
-   Tema "Vice" — estética inspirada en la página de GTA VI.
+   Tema "Studio" — estética editorial clara inspirada en gantri.com:
+   fondo blanco, tipografía Inter, mucho aire, botones negros y
+   fotos de producto sobre gris cálido.
    Se carga DESPUÉS de style.css y SOLO en las páginas públicas
-   (eshop, producto, faq, nosotros). El panel admin no lo usa.
+   (home, eshop, producto, faq, nosotros). El panel admin no lo usa.
+   (El nombre del archivo se mantiene por PUBLIC_PATHS y vercel.json.)
    ============================================================ */
 
 :root {
-    /* Paleta Vice City: atardecer rosa/naranja sobre noche violeta */
-    --vice-pink: #ff2d7c;
-    --vice-magenta: #ff4fd8;
-    --vice-orange: #ff9e3d;
-    --vice-purple: #7b3df0;
-    --vice-grad: linear-gradient(100deg, var(--vice-magenta) 0%, var(--vice-pink) 45%, var(--vice-orange) 100%);
-    /* Versión pastel del degradado, para acentos que no tienen que gritar (precios) */
-    --vice-grad-soft: linear-gradient(100deg, #e895dc 0%, #f48ba8 45%, #ffc990 100%);
-
-    /* Override de las variables base de style.css */
-    --bg: #0d0618;
-    --surface: #171029;
-    --surface-2: #221636;
-    --border: rgba(244, 213, 255, 0.10);
-    --border-strong: rgba(255, 79, 163, 0.55);
-    --text: #fbf6ff;
-    --text-dim: #bfa9d6;
-    --text-faint: #83709e;
-    --accent: #ff2d7c;
-    --accent-hover: #ff4f93;
+    /* Override de las variables base de style.css: paleta clara neutra */
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f4f2ef;
+    --border: #e8e5e0;
+    --border-strong: #111111;
+    --text: #111111;
+    --text-dim: #6f6b66;
+    --text-faint: #a3a09b;
+    --accent: #111111;
+    --accent-hover: #2e2c2a;
     --accent-text: #ffffff;
-    --info: #6cc7ff;
-    --hairline: rgba(255, 79, 163, 0.14);
-    --shadow: 0 2px 10px rgba(8, 2, 20, 0.5), 0 24px 60px rgba(8, 2, 20, 0.55);
+    --success: #1d7a4c;
+    --danger: #c0392b;
+    --warning: #9a6b0f;
+    --info: #2563eb;
+    --hairline: rgba(17, 17, 17, 0.06);
+    --shadow: 0 1px 2px rgba(17, 17, 17, 0.04), 0 16px 40px rgba(17, 17, 17, 0.08);
 }
-
-/* --- Escenario: cielo nocturno con resplandor de atardecer --- */
 
 body {
-    background:
-        radial-gradient(ellipse 90% 55% at 50% -12%, rgba(255, 45, 124, 0.22) 0%, rgba(255, 158, 61, 0.08) 42%, transparent 70%),
-        radial-gradient(ellipse 70% 50% at 88% 108%, rgba(123, 61, 240, 0.22) 0%, transparent 62%),
-        radial-gradient(ellipse 55% 42% at 5% 92%, rgba(255, 79, 216, 0.13) 0%, transparent 60%),
-        var(--bg);
-    background-attachment: fixed;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
 }
 
-/* Fondo animado: dos manchas de luz difusas que derivan muy lento
-   detrás de todo el contenido (z-index negativo = debajo de todo) */
-body::after {
-    content: "";
-    position: fixed;
-    inset: -20%;
-    z-index: -1;
-    pointer-events: none;
-    background:
-        radial-gradient(circle 440px at 22% 32%, rgba(255, 45, 124, 0.14) 0%, transparent 70%),
-        radial-gradient(circle 540px at 80% 72%, rgba(123, 61, 240, 0.17) 0%, transparent 70%),
-        radial-gradient(circle 340px at 60% 12%, rgba(255, 158, 61, 0.10) 0%, transparent 70%);
-    animation: vice-drift 16s ease-in-out infinite alternate;
-    will-change: transform;
-}
-@keyframes vice-drift {
-    from { transform: translate3d(-5%, -3.5%, 0) scale(1); }
-    to { transform: translate3d(5%, 4%, 0) scale(1.12); }
-}
-@media (prefers-reduced-motion: reduce) {
-    body::after { animation: none; }
-}
+::selection { background: #111; color: #fff; }
 
-/* Grano de película sobre toda la página */
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 2500;
-    pointer-events: none;
-    opacity: 0.04;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 160px 160px;
-}
+::-webkit-scrollbar-track { background: #f5f5f4; }
+::-webkit-scrollbar-thumb { background: #d6d3cd; }
+::-webkit-scrollbar-thumb:hover { background: #b9b5ae; }
 
-::selection { background: var(--vice-pink); color: #fff; }
+.loading-spinner::before { border-color: rgba(17, 17, 17, 0.12); border-top-color: #111; }
 
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #3a2359; }
-::-webkit-scrollbar-thumb:hover { background: #57337f; }
-
-.loading-spinner::before { border-color: rgba(255, 45, 124, 0.2); border-top-color: var(--vice-pink); }
-
-/* --- Nav pública: barra de vidrio flotante --- */
+/* --- Nav pública: barra blanca fija con hairline --- */
 
 .public-nav {
     position: sticky;
-    top: 12px;
+    top: 0;
     z-index: 900;
-    background: rgba(16, 8, 30, 0.72);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 10px 18px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 16px 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
 }
 .public-nav-brand {
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-weight: 400;
-    font-size: 21px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
 }
 .brand-dot {
-    background: var(--vice-grad);
-    box-shadow: 0 0 8px rgba(255, 45, 124, 0.5), 0 0 18px rgba(255, 158, 61, 0.2);
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: #111;
+    box-shadow: none;
 }
-.public-nav-links a { border-radius: 999px; }
+.public-nav-links a {
+    border-radius: 0;
+    font-weight: 500;
+    color: var(--text-dim);
+}
 .public-nav-links a:hover {
-    color: #fff;
-    background: rgba(255, 45, 124, 0.14);
+    color: var(--text);
+    background: transparent;
+    text-decoration: underline;
+    text-underline-offset: 5px;
 }
 
-/* --- Tipografía display: títulos estilo póster --- */
+/* --- Tipografía display: títulos editoriales, sin mayúsculas ni degradados --- */
 
 .eshop-header h1,
 .faq-container h1,
 .nosotros-container h1,
 .producto-info h1,
 .producto-no-encontrado h2 {
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-weight: 400;
-    text-transform: uppercase;
-    background: var(--vice-grad);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 26px rgba(255, 45, 124, 0.15));
+    font-family: inherit;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: -0.03em;
+    color: var(--text);
 }
-.eshop-header h1 { font-size: clamp(46px, 7.5vw, 80px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 8px; }
+.eshop-header h1 { font-size: clamp(32px, 5.5vw, 56px); line-height: 1.05; margin-bottom: 10px; }
 .faq-container h1,
-.nosotros-container h1 { font-size: clamp(42px, 6vw, 62px); line-height: 0.98; letter-spacing: 2px; }
-.producto-info h1 { font-size: clamp(36px, 5vw, 52px); line-height: 0.98; letter-spacing: 1.5px; }
+.nosotros-container h1 { font-size: clamp(28px, 4.5vw, 44px); line-height: 1.08; }
+.producto-info h1 { font-size: clamp(26px, 4vw, 38px); line-height: 1.12; }
 
-.home-hero-eyebrow, .page-eyebrow { color: var(--vice-orange); }
-.home-hero-eyebrow::before, .page-eyebrow::before { height: 2px; background: var(--vice-grad); }
+.home-hero-eyebrow, .page-eyebrow { color: var(--text-faint); }
+.home-hero-eyebrow::before, .page-eyebrow::before { height: 1px; background: var(--text-faint); }
 
-/* --- Header del eshop (reemplaza los estilos inline que tenía el HTML) --- */
+/* --- Header del eshop --- */
 
-.eshop-header { text-align: left; max-width: 1200px; margin: 0 auto 24px; }
+.eshop-header { text-align: left; max-width: 1200px; margin: 0 auto 28px; }
 .eshop-header .home-hero-eyebrow { margin-bottom: 12px; }
-.eshop-header .eshop-sub { margin-bottom: 20px; font-size: 15px; }
+.eshop-header .eshop-sub { margin-bottom: 22px; font-size: 15px; color: var(--text-dim); }
 .eshop-header .search-bar { max-width: 640px; }
-#eshopCategorias { margin: 18px 0 0; }
+#eshopCategorias { margin: 20px 0 0; }
 
-/* --- Chips de categorías: neón --- */
+/* --- Chips de categorías --- */
 
 .home-cat-btn {
-    border-color: rgba(255, 79, 163, 0.28);
-    background: rgba(255, 45, 124, 0.05);
+    border-color: var(--border);
+    background: #fff;
+    color: var(--text-dim);
 }
 .home-cat-btn:hover, .home-cat-btn:focus-visible {
-    border-color: rgba(255, 79, 163, 0.6);
-    color: #fff;
-    background: rgba(255, 45, 124, 0.12);
-    box-shadow: 0 0 12px rgba(255, 45, 124, 0.15);
+    border-color: #111;
+    color: #111;
+    background: #fff;
+    box-shadow: none;
 }
-.home-cat-btn-active { box-shadow: 0 0 12px rgba(255, 45, 124, 0.18); }
+.home-cat-btn-active {
+    border-color: #111;
+    color: #111;
+    background: var(--surface-2);
+    box-shadow: none;
+}
 
 /* --- Buscador --- */
 
 .search-bar {
-    background: rgba(23, 16, 41, 0.8);
-    border-radius: 14px;
+    background: #fff;
+    border-radius: 6px;
 }
 .search-bar:focus-within {
-    border-color: rgba(255, 79, 163, 0.6);
-    box-shadow: 0 0 0 4px rgba(255, 45, 124, 0.1);
+    border-color: #111;
+    box-shadow: none;
 }
 .search-bar button, .search-bar button:hover {
-    background: var(--vice-grad);
-    color: #fff;
-    border-radius: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
 }
-.search-bar button:hover {
-    filter: brightness(1.1);
-    box-shadow: 0 0 16px rgba(255, 45, 124, 0.25);
-}
+.search-bar button { background: #111; color: #fff; }
+.search-bar button:hover { background: var(--accent-hover); }
 
-.eshop-orden select { border-radius: 999px; }
-.eshop-orden select:focus { outline: none; border-color: var(--vice-pink); }
+.eshop-orden select { border-radius: 6px; background: #fff; }
+.eshop-orden select:focus { outline: none; border-color: #111; }
 
-/* --- Cards de producto --- */
+/* --- Cards de producto: sin borde, foto sobre gris cálido --- */
 
 .product-card {
-    background: linear-gradient(180deg, rgba(30, 18, 52, 0.92), rgba(19, 11, 35, 0.94));
-    border-color: rgba(244, 213, 255, 0.08);
-    border-radius: 18px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
 }
 .product-card:hover {
-    border-color: rgba(255, 45, 124, 0.4);
-    box-shadow:
-        0 0 0 1px rgba(255, 45, 124, 0.2),
-        0 12px 32px rgba(8, 2, 20, 0.55),
-        0 0 36px rgba(255, 45, 124, 0.08);
-    transform: translateY(-4px);
+    border: none;
+    box-shadow: none;
+    transform: none;
 }
-.product-img { background: rgba(12, 6, 24, 0.6); }
+.product-img {
+    background: var(--surface-2);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.product-card:hover .product-img img { transform: scale(1.04); }
+.product-body { padding: 14px 2px 4px; gap: 6px; }
+.product-body + .product-body { padding-top: 0; }
 
-/* Fotos con el fondo blanco recortado: el producto "flota" sobre la card
-   con su propia sombra (la clase la agrega quitarFondoBlanco en utils.js) */
+.product-title { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+
+/* Fotos con el fondo blanco recortado: el producto "flota" sobre el gris
+   con una sombra suave (la clase la agrega quitarFondoBlanco en utils.js) */
 .product-img img.img-recortada,
 .producto-gallery-main img.img-recortada {
     object-fit: contain;
     padding: 7%;
-    filter: drop-shadow(0 14px 22px rgba(4, 1, 12, 0.55));
+    filter: drop-shadow(0 12px 18px rgba(17, 17, 17, 0.14));
 }
 .producto-gallery-thumbs img.img-recortada {
     object-fit: contain;
     padding: 3px;
 }
 
-.skeleton-card { background: rgba(23, 16, 41, 0.7); border-radius: 18px; }
-.skeleton-img, .skeleton-line { background: rgba(123, 61, 240, 0.16); }
+.skeleton-card { background: transparent; border: none; border-radius: 0; }
+.skeleton-img { border-radius: 6px; }
+.skeleton-img, .skeleton-line { background: var(--surface-2); }
 
-/* Precios con el degradado pastel: se nota el arcoíris pero sin estridencia */
-.precio-monto, .producto-precio .monto {
-    background: var(--vice-grad-soft);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-}
-.precio-simbolo, .producto-precio .simbolo { color: var(--text-dim); }
+/* Precio: discreto, debajo del nombre */
+.precio-section { margin: 0; align-items: baseline; }
+.precio-simbolo, .producto-precio .simbolo { color: var(--text); }
+.precio-simbolo { font-size: 13px; font-weight: 500; line-height: 1.4; }
+.precio-monto { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: var(--text); }
 
 .cat-badge {
-    background: rgba(123, 61, 240, 0.16);
-    border-color: rgba(123, 61, 240, 0.4);
-    color: #cdb6ff;
-    border-radius: 999px;
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    padding: 0;
+    border-radius: 0;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.12em;
     font-size: 10.5px;
     font-weight: 600;
 }
 
-/* Botones de WhatsApp y ML integrados a la paleta: fondo oscuro translúcido,
-   el color de marca queda solo como acento en el borde, texto e ícono */
+.product-stock { font-size: 12px; color: var(--text-faint); }
+.stock-disponible { color: var(--text-dim); }
+.stock-agotado { color: var(--text-faint); }
+
+/* --- Botones de compra: negro sólido + contorno --- */
+
 .btn-whatsapp, .producto-cta-whatsapp, .carrito-enviar {
-    background: rgba(37, 211, 102, 0.12);
-    border: 1px solid rgba(37, 211, 102, 0.32);
-    color: #8ce8b2;
+    background: #111;
+    border: 1px solid #111;
+    color: #fff;
+    border-radius: 4px;
 }
 .btn-whatsapp:hover, .producto-cta-whatsapp:hover, .carrito-enviar:hover {
-    background: rgba(37, 211, 102, 0.2);
-    border-color: rgba(37, 211, 102, 0.55);
-    color: #c3f7d8;
-    box-shadow: 0 0 14px rgba(37, 211, 102, 0.15);
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: #fff;
+    box-shadow: none;
 }
-.producto-cta-whatsapp svg { fill: currentColor; }
+.btn-whatsapp svg, .producto-cta-whatsapp svg { fill: currentColor; }
 
 .btn-ml, .producto-cta-ml {
-    background: rgba(255, 230, 0, 0.09);
-    border: 1px solid rgba(255, 230, 0, 0.26);
-    color: #f5e18d;
+    background: #fff;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
 }
 .btn-ml:hover, .producto-cta-ml:hover {
-    background: rgba(255, 230, 0, 0.16);
-    border-color: rgba(255, 230, 0, 0.45);
-    color: #fbedb5;
-    box-shadow: 0 0 12px rgba(255, 230, 0, 0.12);
+    background: #fff;
+    border-color: #111;
+    color: #111;
+    box-shadow: none;
 }
 
-/* Botón flotante de WhatsApp: mismo vidrio oscuro que el del carrito */
+/* Botón flotante de WhatsApp: blanco con el ícono verde */
 .whatsapp-float {
-    background: linear-gradient(180deg, rgba(35, 20, 60, 0.95), rgba(20, 11, 38, 0.95));
-    border: 1px solid rgba(37, 211, 102, 0.45);
-    box-shadow: 0 4px 18px rgba(37, 211, 102, 0.22);
+    background: #fff;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 10px rgba(17, 17, 17, 0.10);
 }
-.whatsapp-float svg { fill: #4ade80; }
-.whatsapp-float:hover { box-shadow: 0 6px 24px rgba(37, 211, 102, 0.35); }
+.whatsapp-float svg { fill: #1faa53; }
+.whatsapp-float:hover { box-shadow: 0 6px 20px rgba(17, 17, 17, 0.14); }
 
 /* --- Ficha de producto --- */
 
-.producto-back:hover { color: var(--vice-pink); }
+.producto-back:hover { color: var(--text); }
 .producto-gallery-main {
-    background: rgba(15, 8, 29, 0.7);
-    box-shadow: var(--shadow);
+    background: var(--surface-2);
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
 }
+.producto-gallery-thumbs img { border-radius: 4px; }
 .producto-gallery-thumbs img.active {
-    border-color: var(--vice-pink);
-    box-shadow: 0 0 10px rgba(255, 45, 124, 0.4);
+    border-color: #111;
+    box-shadow: none;
 }
-.swatch-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--vice-pink); }
+.swatch-active { box-shadow: 0 0 0 2px #fff, 0 0 0 3px #111; }
 
-.producto-similares { border-top-color: rgba(255, 45, 124, 0.18); }
+.producto-precio .monto { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+.producto-precio .simbolo { font-size: 18px; }
+.producto-stock.stock-ok { color: var(--success); }
+
+.producto-similares { border-top-color: var(--border); }
 .producto-similares h2 {
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-weight: 400;
-    font-size: 26px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    text-transform: none;
 }
 
-/* --- FAQ --- */
+/* --- FAQ: acordeón con divisores, sin cajas --- */
 
-.faq-item { background: rgba(23, 16, 41, 0.7); border-radius: 14px; }
-.faq-item:hover { border-color: rgba(255, 45, 124, 0.4); }
-.faq-question { background: transparent; }
-.faq-question:hover { background: rgba(255, 45, 124, 0.06); }
-.faq-question::after { color: var(--vice-pink); }
-.faq-answer { background: transparent; }
+.faq-item {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    margin-bottom: 0;
+}
+.faq-item:first-of-type { border-top: 1px solid var(--border); }
+.faq-item:hover { border-color: var(--border); }
+.faq-question { background: transparent; padding: 18px 4px; font-weight: 500; }
+.faq-question:hover { background: transparent; color: #111; }
+.faq-question::after { color: var(--text-faint); }
+.faq-answer { background: transparent; padding: 0 4px; }
+.faq-answer.open { padding: 0 4px 18px; }
 
-/* --- Nosotros --- */
+/* --- Nosotros: secciones editoriales, sin cajas --- */
 
-.nosotros-card { background: rgba(23, 16, 41, 0.72); border-radius: 18px; }
+.nosotros-card {
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    padding: 28px 4px;
+    margin-bottom: 0;
+}
 .nosotros-card h2 {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-weight: 400;
-    font-size: 21px;
-    letter-spacing: 1.8px;
-    text-transform: uppercase;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-transform: none;
+    margin-bottom: 12px;
 }
-.nosotros-card h2::before {
-    content: "";
-    width: 4px;
-    height: 16px;
-    border-radius: 2px;
-    background: var(--vice-grad);
-}
-.feature-list li::before { border-color: var(--vice-pink); }
+.feature-list li::before { border-color: #111; }
 
-/* --- Home pública: hero key-art --- */
+/* --- Home pública: hero editorial --- */
 
-.home-body { padding: 16px 24px 60px; }
-.home-main { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+.home-body { padding: 0 24px 80px; }
+.home-main { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 64px; }
 
 .vice-hero {
     position: relative;
     max-width: 1200px;
-    margin: 20px auto 44px;
-    overflow: visible;
+    margin: 28px auto 64px;
 }
-/* Sol synthwave: disco degradado con cortes horizontales, detrás del contenido */
-.vice-sun {
-    position: absolute;
-    top: -40px;
-    right: 4%;
-    width: min(380px, 42vw);
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: linear-gradient(180deg, var(--vice-orange) 0%, var(--vice-pink) 55%, var(--vice-magenta) 100%);
-    -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 62%, #000 62.5%, transparent 63%, transparent 68%, #000 68.5%, #000 74%, transparent 74.5%, transparent 79%, #000 79.5%, #000 86%, transparent 86.5%, transparent 90%, #000 90.5%);
-    mask-image: repeating-linear-gradient(180deg, #000 0 62%, #000 62.5%, transparent 63%, transparent 68%, #000 68.5%, #000 74%, transparent 74.5%, transparent 79%, #000 79.5%, #000 86%, transparent 86.5%, transparent 90%, #000 90.5%);
-    opacity: 0.25;
-    filter: blur(0.5px) drop-shadow(0 0 60px rgba(255, 45, 124, 0.3));
-    pointer-events: none;
-    z-index: 0;
-}
+.vice-sun { display: none; }
 .vice-hero-inner {
     position: relative;
-    z-index: 1;
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    gap: 40px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 48px;
     align-items: center;
 }
 .vice-hero-text h1 {
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-weight: 400;
-    font-size: clamp(52px, 8vw, 96px);
-    line-height: 0.92;
-    letter-spacing: 2px;
-    text-transform: uppercase;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: clamp(38px, 6.5vw, 72px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    text-transform: none;
     text-wrap: balance;
-    margin-bottom: 16px;
-    background: var(--vice-grad);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 30px rgba(255, 45, 124, 0.18));
+    margin-bottom: 18px;
+    color: var(--text);
 }
 .vice-hero-text p {
     color: var(--text-dim);
     font-size: clamp(15px, 2vw, 17px);
-    line-height: 1.6;
-    max-width: 480px;
-    margin-bottom: 24px;
+    line-height: 1.65;
+    max-width: 460px;
+    margin-bottom: 28px;
     text-wrap: pretty;
 }
-.vice-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.vice-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 26px; }
 .btn-vice {
     display: inline-flex; align-items: center; justify-content: center;
-    background: var(--vice-grad);
+    background: #111;
     color: #fff;
-    padding: 13px 30px;
-    border-radius: 12px;
-    font-size: 15px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.8px;
+    padding: 14px 32px;
+    border-radius: 4px;
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
     text-decoration: none;
-    transition: filter .15s, box-shadow .15s, transform .1s;
+    transition: background .15s, transform .1s;
 }
-.btn-vice:hover { filter: brightness(1.1); box-shadow: 0 0 20px rgba(255, 45, 124, 0.25); }
+.btn-vice:hover { background: var(--accent-hover); box-shadow: none; filter: none; }
 .btn-vice:active { transform: scale(.98); }
 .btn-vice-ghost {
     display: inline-flex; align-items: center; justify-content: center;
     background: transparent;
     color: var(--text);
-    border: 1px solid rgba(255, 79, 163, 0.4);
-    padding: 12px 26px;
-    border-radius: 12px;
-    font-size: 14px; font-weight: 600;
+    border: 1px solid #111;
+    padding: 13px 28px;
+    border-radius: 4px;
+    font-size: 14px; font-weight: 500;
     text-decoration: none;
-    transition: all .15s;
+    transition: background .15s, color .15s;
 }
 .btn-vice-ghost:hover {
-    border-color: rgba(255, 79, 163, 0.6);
-    background: rgba(255, 45, 124, 0.08);
-    box-shadow: 0 0 14px rgba(255, 45, 124, 0.12);
+    background: #111;
+    color: #fff;
+    box-shadow: none;
 }
-.vice-hero-search { max-width: 480px; }
+.vice-hero-search { max-width: 460px; }
 
-/* Collage de fotos reales con marcos neón, apenas rotadas */
+/* Collage de fotos reales: bloques limpios sobre gris, sin rotaciones */
 .vice-hero-collage {
     position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    padding: 10px;
+    gap: 14px;
 }
 .vice-polaroid {
     display: block;
-    border-radius: 16px;
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid rgba(255, 79, 163, 0.35);
-    box-shadow: 0 14px 40px rgba(8, 2, 20, 0.6), 0 0 24px rgba(255, 45, 124, 0.08);
-    transform: rotate(-3deg);
-    transition: transform .25s, box-shadow .25s;
-    background: rgba(15, 8, 29, 0.7);
+    border: none;
+    box-shadow: none;
+    transform: none;
+    background: var(--surface-2);
+    transition: opacity .2s;
 }
-.vice-polaroid:nth-child(2) { transform: rotate(2.5deg) translateY(22px); }
-.vice-polaroid:nth-child(3) { transform: rotate(-1.5deg) translateY(-6px); grid-column: 1 / -1; justify-self: center; width: 62%; }
-.vice-polaroid:hover { transform: rotate(0) scale(1.04); box-shadow: 0 18px 50px rgba(8, 2, 20, 0.7), 0 0 30px rgba(255, 45, 124, 0.15); z-index: 2; }
+.vice-polaroid:nth-child(2) { transform: none; }
+.vice-polaroid:nth-child(3) { transform: none; grid-column: 1 / -1; }
+.vice-polaroid:hover { transform: none; box-shadow: none; opacity: .92; }
 .vice-polaroid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.vice-polaroid:nth-child(3) img { aspect-ratio: 21 / 9; }
 
 .home-section-title { font-size: 22px; }
-.home-section-title::before { background: var(--vice-grad); }
+.home-section-title::before { display: none; }
 .home-section-title span:first-of-type {
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-weight: 400;
-    font-size: 26px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    text-transform: none;
 }
-.home-section-title .home-section-link:hover { color: var(--vice-pink); }
+.home-section-title .home-section-link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
 
-/* Pasos de compra */
+/* Pasos de compra: columnas editoriales con hairline arriba */
 .vice-steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
+    gap: 28px;
 }
 .vice-step {
-    background: rgba(23, 16, 41, 0.72);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 22px;
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--text);
+    border-radius: 0;
+    padding: 18px 0 0;
 }
 .vice-step-num {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    background: var(--vice-grad);
-    color: #fff;
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-size: 19px;
-    margin-bottom: 12px;
+    display: block;
+    width: auto; height: auto;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
 }
-.vice-step h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
-.vice-step p { color: var(--text-dim); font-size: 13.5px; line-height: 1.55; }
+.vice-step-num::before { content: "0"; }
+.vice-step h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.01em; }
+.vice-step p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
 
 @media (max-width: 860px) {
-    .vice-hero-inner { grid-template-columns: 1fr; }
-    .vice-hero-collage { max-width: 420px; }
-    .vice-sun { top: -20px; right: -6%; opacity: 0.25; }
+    .vice-hero-inner { grid-template-columns: 1fr; gap: 28px; }
+    .vice-hero-collage { max-width: 480px; }
 }
 
 /* --- Controles del eshop: orden + filtro de precio --- */
@@ -498,13 +466,13 @@ body::before {
     width: 92px;
     padding: 8px 12px;
     border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface-2);
+    border-radius: 6px;
+    background: #fff;
     color: var(--text);
     font-size: 13px;
     font-family: inherit;
 }
-.eshop-precio-filtro input:focus { outline: none; border-color: var(--vice-pink); }
+.eshop-precio-filtro input:focus { outline: none; border-color: #111; }
 .eshop-precio-filtro input::placeholder { color: var(--text-faint); }
 
 /* --- Carrito de pedido --- */
@@ -512,30 +480,30 @@ body::before {
 .btn-add-carrito {
     width: 100%;
     margin-top: 6px;
-    padding: 9px;
-    border: 1px solid rgba(255, 79, 163, 0.35);
-    border-radius: 6px;
-    background: rgba(255, 45, 124, 0.06);
-    color: #ffb3d1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--text);
     font-size: 12.5px;
-    font-weight: 600;
+    font-weight: 500;
     font-family: inherit;
     cursor: pointer;
-    transition: all .15s;
+    transition: border-color .15s, color .15s;
 }
 .btn-add-carrito:hover {
-    border-color: rgba(255, 79, 163, 0.6);
-    background: rgba(255, 45, 124, 0.12);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(255, 45, 124, 0.12);
+    border-color: #111;
+    background: #fff;
+    color: #111;
+    box-shadow: none;
 }
 .btn-add-carrito.btn-add-ok {
     border-color: var(--success);
     color: var(--success);
-    background: rgba(74, 222, 128, 0.08);
+    background: #fff;
     box-shadow: none;
 }
-.producto-cta-carrito { padding: 13px; border-radius: var(--radius-md); font-size: 14px; margin-top: 0; }
+.producto-cta-carrito { padding: 13px; border-radius: 4px; font-size: 14px; margin-top: 0; }
 
 .carrito-float {
     position: fixed;
@@ -543,19 +511,19 @@ body::before {
     right: 24px;
     width: 56px;
     height: 56px;
-    border: 1px solid rgba(255, 79, 163, 0.5);
+    border: 1px solid var(--border);
     border-radius: 50%;
-    background: linear-gradient(180deg, rgba(35, 20, 60, 0.95), rgba(20, 11, 38, 0.95));
-    color: #fff;
+    background: #fff;
+    color: var(--text);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 18px rgba(255, 45, 124, 0.22);
+    box-shadow: 0 2px 10px rgba(17, 17, 17, 0.10);
     z-index: 999;
     transition: transform .2s, box-shadow .2s;
 }
-.carrito-float:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(255, 45, 124, 0.3); }
+.carrito-float:hover { transform: scale(1.06); box-shadow: 0 6px 20px rgba(17, 17, 17, 0.14); }
 .carrito-float .icon-lg { width: 24px; height: 24px; }
 .carrito-count {
     position: absolute;
@@ -565,10 +533,10 @@ body::before {
     height: 22px;
     padding: 0 5px;
     border-radius: 999px;
-    background: var(--vice-grad);
+    background: #111;
     color: #fff;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -581,14 +549,12 @@ body::before {
     width: min(360px, calc(100vw - 32px));
     max-height: min(480px, calc(100dvh - 200px));
     overflow-y: auto;
-    background: rgba(20, 11, 38, 0.97);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 79, 163, 0.35);
-    border-radius: 18px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 18px;
     z-index: 1100;
-    box-shadow: var(--shadow), 0 0 30px rgba(255, 45, 124, 0.08);
+    box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -597,10 +563,11 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-family: 'Bebas Neue', 'Outfit', sans-serif;
-    font-size: 22px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-transform: none;
 }
 .carrito-cerrar {
     background: none;
@@ -609,9 +576,9 @@ body::before {
     cursor: pointer;
     padding: 4px;
     display: flex;
-    border-radius: 6px;
+    border-radius: 4px;
 }
-.carrito-cerrar:hover { color: #fff; background: rgba(255, 45, 124, 0.14); }
+.carrito-cerrar:hover { color: #111; background: var(--surface-2); }
 .carrito-items { display: flex; flex-direction: column; gap: 10px; }
 .carrito-item {
     display: flex;
@@ -623,20 +590,20 @@ body::before {
 }
 .carrito-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .carrito-item-nombre { font-size: 13.5px; font-weight: 500; }
-.carrito-item-precio { font-size: 12.5px; color: var(--text-dim); font-weight: 600; }
+.carrito-item-precio { font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
 .carrito-item-cant { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .carrito-item-cant button {
     width: 26px; height: 26px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 79, 163, 0.35);
-    background: rgba(255, 45, 124, 0.06);
+    border: 1px solid var(--border);
+    background: #fff;
     color: var(--text);
     font-size: 15px;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    transition: all .15s;
+    transition: border-color .15s;
 }
-.carrito-item-cant button:hover { border-color: var(--vice-pink); background: rgba(255, 45, 124, 0.16); }
+.carrito-item-cant button:hover { border-color: #111; background: #fff; }
 .carrito-item-cant span { min-width: 18px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 .carrito-total {
     display: flex;
@@ -646,16 +613,12 @@ body::before {
     color: var(--text-dim);
 }
 .carrito-total strong {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    background: var(--vice-grad-soft);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
 }
-.carrito-enviar { padding: 13px; font-size: 14px; border-radius: 10px; }
+.carrito-enviar { padding: 13px; font-size: 14px; }
 .carrito-vaciar {
     background: none;
     border: none;
@@ -668,19 +631,28 @@ body::before {
 .carrito-vaciar:hover { color: var(--danger); text-decoration: underline; }
 
 @media (max-width: 768px) {
-    .home-body { padding: 12px 16px 40px; }
-    .carrito-float { width: 48px; height: 48px; bottom: 76px; right: 16px; }
-    .carrito-panel { bottom: 134px; right: 16px; }
+    .home-body { padding: 0 16px 48px; }
+
+    .public-nav { padding: 12px 2px; margin-bottom: 24px; }
+    .public-nav-brand { font-size: 15.5px; }
+
+    .vice-hero { margin: 8px auto 40px; }
+    .vice-hero-actions { gap: 10px; }
+    .btn-vice, .btn-vice-ghost { flex: 1 1 auto; padding-left: 18px; padding-right: 18px; }
+    .home-main { gap: 44px; }
+
+    .carrito-float { width: 48px; height: 48px; bottom: calc(76px + env(safe-area-inset-bottom)); right: 16px; }
+    .carrito-panel { bottom: calc(134px + env(safe-area-inset-bottom)); right: 16px; left: 16px; width: auto; }
 }
 
 /* --- Footer --- */
 
-.eshop-footer {
-    border-top: 1px solid transparent;
-    border-image: linear-gradient(90deg, transparent, rgba(255, 45, 124, 0.5), transparent) 1;
-}
+.eshop-footer { border-top: 1px solid var(--border); }
+.social-link { border: none; padding: 6px 4px; }
 .social-link:hover {
-    color: #fff;
-    border-color: rgba(255, 79, 163, 0.5);
-    box-shadow: 0 0 12px rgba(255, 45, 124, 0.12);
+    color: var(--text);
+    border: none;
+    box-shadow: none;
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }

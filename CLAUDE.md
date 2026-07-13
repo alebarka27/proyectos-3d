@@ -24,16 +24,20 @@ public/
   login.html / login.js   — login de admin (redirige a /admin)
   carrito.js              — carrito de pedido (localStorage → mensaje de WhatsApp)
   style.css               — estilos base (admin + tienda)
-  gta.css                 — tema "Vice" (estética GTA VI), SOLO páginas públicas
+  gta.css                 — tema "Studio" (estética gantri.com, clara y editorial), SOLO páginas públicas
   utils.js                — helpers compartidos (incluye renderProductoCard)
   faq.html / nosotros.html — páginas estáticas públicas
 ```
 
 ### Tema visual de la tienda
 
-Las páginas públicas usan `gta.css` (cargado después de `style.css`): paleta
-Vice City (rosa/naranja/violeta), títulos en Bebas Neue con degradado, grano de
-película y glow neón. El panel admin y el login NO cargan `gta.css` — si se
+Las páginas públicas usan `gta.css` (cargado después de `style.css`): tema
+"Studio" inspirado en gantri.com — fondo blanco, tipografía Inter, botones
+negros, fotos de producto sobre gris cálido (`--surface-2`) y secciones con
+hairlines en lugar de cajas. El archivo conserva el nombre `gta.css` (y varias
+clases conservan el prefijo `vice-`) por compatibilidad con `PUBLIC_PATHS`,
+`vercel.json` y el HTML existente. El panel admin y el login NO cargan `gta.css`
+(siguen con el tema oscuro base y la fuente Outfit) — si se
 agrega un archivo estático nuevo que usen las páginas públicas, hay que sumarlo
 a `PUBLIC_PATHS` en `api/index.js` o los visitantes sin sesión no lo van a poder cargar.
 
@@ -140,4 +144,4 @@ Push a `main` en GitHub → Vercel detecta y deploya automáticamente.
 ## Pendiente / Próximos pasos
 
 - Sincronización de inventario con MercadoLibre (bidireccional)
-- Imagen Open Graph propia (PNG 1200×630 con la paleta Vice) para los links compartidos
+- Imagen Open Graph propia (PNG 1200×630 con el tema claro) para los links compartidos
