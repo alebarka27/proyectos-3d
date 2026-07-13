@@ -258,11 +258,27 @@ app.get('/sitemap.xml', async (req, res) => {
     }
 });
 
+// Archivos que puede cachear el CDN de Vercel. Los assets del admin (app.js,
+// ui.js, admin.html) y login.html quedan afuera: cachearlos con "public"
+// haría que el edge se los sirva a visitantes sin sesión.
+const STATIC_CACHEABLES = new Set([
+    'index.html', 'eshop.html', 'faq.html', 'nosotros.html',
+    'style.css', 'gta.css', 'utils.js', 'icons.js', 'home.js', 'eshop.js',
+    'producto.js', 'carrito.js', 'login.js', 'favicon.svg',
+]);
+
 if (fs.existsSync(publicDir)) {
-    app.use(express.static(publicDir));
+    app.use(express.static(publicDir, {
+        setHeaders(res, filePath) {
+            if (STATIC_CACHEABLES.has(path.basename(filePath))) {
+                res.set('Cache-Control', CACHE_PUBLICO);
+            }
+        },
+    }));
 }
 
 app.get('/eshop', (req, res) => {
+    res.set('Cache-Control', CACHE_PUBLICO);
     res.sendFile(path.join(publicDir, 'eshop.html'));
 });
 
@@ -321,6 +337,20 @@ async function migrarArchivos() {
 
 async function initDB() {
     try {
+        // Fast path: si el último cambio de esquema ya está aplicado (columna
+        // items de encargos + tabla ml_tokens), no hay nada que crear ni migrar.
+        // Evita ~25 round-trips a Postgres en cada cold start de la función.
+        // OJO: al agregar una tabla o columna nueva, actualizar este chequeo
+        // para que apunte al cambio más reciente.
+        const { rows: schemaOk } = await sql`
+            SELECT
+                EXISTS (SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'encargos' AND column_name = 'items') AS encargos_items,
+                EXISTS (SELECT 1 FROM information_schema.tables
+                        WHERE table_name = 'ml_tokens') AS ml_tokens
+        `;
+        if (schemaOk[0].encargos_items && schemaOk[0].ml_tokens) return;
+
         await sql`
             CREATE TABLE IF NOT EXISTS proyectos (
                 id TEXT PRIMARY KEY,
@@ -1157,10 +1187,12 @@ app.post('/api/ml/webhook', async (req, res) => {
 });
 
 app.get('/faq.html', (req, res) => {
+    res.set('Cache-Control', CACHE_PUBLICO);
     res.sendFile(path.join(publicDir, 'faq.html'));
 });
 
 app.get('/nosotros.html', (req, res) => {
+    res.set('Cache-Control', CACHE_PUBLICO);
     res.sendFile(path.join(publicDir, 'nosotros.html'));
 });
 

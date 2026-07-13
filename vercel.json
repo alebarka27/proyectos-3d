@@ -4,9 +4,18 @@
         {
             "src": "api/index.js",
             "use": "@vercel/node"
+        },
+        {
+            "src": "public/{style.css,gta.css,utils.js,icons.js,home.js,eshop.js,producto.js,login.js,carrito.js,favicon.svg}",
+            "use": "@vercel/static"
         }
     ],
     "routes": [
+        {
+            "src": "/(style\\.css|gta\\.css|utils\\.js|icons\\.js|home\\.js|eshop\\.js|producto\\.js|login\\.js|carrito\\.js|favicon\\.svg)",
+            "dest": "/public/$1",
+            "headers": { "Cache-Control": "public, max-age=300, s-maxage=31536000, stale-while-revalidate=86400" }
+        },
         { "src": "/(.*)", "dest": "api/index.js" }
     ]
 }

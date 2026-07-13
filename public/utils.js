@@ -114,29 +114,39 @@ function quitarFondoBlanco(img) {
     // falla este worker y la foto visible queda intacta.
     const worker = new Image();
     worker.crossOrigin = 'anonymous';
+    // El flood-fill sobre el canvas es pesado (~1M de píxeles por foto): se
+    // procesa en tiempo idle para no trabar el scroll mientras carga la grilla.
     worker.onload = () => {
-        try {
-            const MAX = 900; // suficiente para cards y ficha; achica el costo de proceso
-            const escala = Math.min(1, MAX / Math.max(worker.width, worker.height));
-            const w = Math.max(1, Math.round(worker.width * escala));
-            const h = Math.max(1, Math.round(worker.height * escala));
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(worker, 0, 0, w, h);
-            const imgData = ctx.getImageData(0, 0, w, h);
-            if (!recortarBlanco(imgData, w, h)) return;
-            ctx.putImageData(imgData, 0, 0);
-            canvas.toBlob(blob => {
-                if (!blob) return;
-                img.dataset.srcOriginal = src;
-                img.src = URL.createObjectURL(blob);
-                img.classList.add('img-recortada');
-            }, 'image/png');
-        } catch { /* canvas tainted u otro error: dejar la foto original */ }
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(() => procesarFondo(img, worker, src), { timeout: 2000 });
+        } else {
+            setTimeout(() => procesarFondo(img, worker, src), 0);
+        }
     };
     worker.src = src;
+}
+
+function procesarFondo(img, worker, src) {
+    try {
+        const MAX = 900; // suficiente para cards y ficha; achica el costo de proceso
+        const escala = Math.min(1, MAX / Math.max(worker.width, worker.height));
+        const w = Math.max(1, Math.round(worker.width * escala));
+        const h = Math.max(1, Math.round(worker.height * escala));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(worker, 0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        if (!recortarBlanco(imgData, w, h)) return;
+        ctx.putImageData(imgData, 0, 0);
+        canvas.toBlob(blob => {
+            if (!blob) return;
+            img.dataset.srcOriginal = src;
+            img.src = URL.createObjectURL(blob);
+            img.classList.add('img-recortada');
+        }, 'image/png');
+    } catch { /* canvas tainted u otro error: dejar la foto original */ }
 }
 
 // Vuelve transparente el fondo blanco conectado al borde. Modifica imgData
