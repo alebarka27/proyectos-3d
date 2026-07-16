@@ -631,18 +631,60 @@ body {
 .carrito-vaciar:hover { color: var(--danger); text-decoration: underline; }
 
 @media (max-width: 768px) {
-    .home-body { padding: 0 16px 48px; }
+    /* 14px de margen lateral, igual que .eshop-body, así los "bleeds" coinciden */
+    .home-body { padding: 0 14px 48px; }
 
     .public-nav { padding: 12px 2px; margin-bottom: 24px; }
     .public-nav-brand { font-size: 15.5px; }
 
     .vice-hero { margin: 8px auto 40px; }
+    .vice-hero-text h1 { font-size: clamp(32px, 9vw, 44px); }
     .vice-hero-actions { gap: 10px; }
-    .btn-vice, .btn-vice-ghost { flex: 1 1 auto; padding-left: 18px; padding-right: 18px; }
+    .btn-vice, .btn-vice-ghost { flex: 1 1 auto; padding: 14px 18px; }
     .home-main { gap: 44px; }
 
-    .carrito-float { width: 48px; height: 48px; bottom: calc(76px + env(safe-area-inset-bottom)); right: 16px; }
-    .carrito-panel { bottom: calc(134px + env(safe-area-inset-bottom)); right: 16px; left: 16px; width: auto; }
+    /* Chips de categorías: una sola fila deslizable de borde a borde */
+    .home-categorias {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        margin-left: -14px;
+        margin-right: -14px;
+        padding: 2px 14px 6px;
+    }
+    .home-categorias::-webkit-scrollbar { display: none; }
+    .home-cat-btn { flex-shrink: 0; padding: 9px 16px; }
+
+    /* Controles del eshop apilados a lo ancho */
+    .eshop-controles { gap: 10px; }
+    .eshop-orden { flex: 1 1 100%; }
+    .eshop-orden select { flex: 1; min-width: 0; padding: 10px 12px; }
+    .eshop-precio-filtro { flex: 1 1 100%; }
+    .eshop-precio-filtro input { flex: 1; width: auto; min-width: 0; padding: 10px 12px; }
+
+    .eshop-header .search-bar { max-width: none; }
+    .eshop-header .eshop-sub { margin-bottom: 16px; }
+
+    .carrito-float { width: 52px; height: 52px; bottom: calc(76px + env(safe-area-inset-bottom)); right: 16px; }
+
+    /* El panel del pedido pasa a ser una hoja inferior, estilo app */
+    .carrito-panel {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: auto;
+        max-height: 80dvh;
+        border-radius: 16px 16px 0 0;
+        border-bottom: none;
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+        box-shadow: 0 -10px 40px rgba(17, 17, 17, 0.16);
+        overscroll-behavior: contain;
+    }
+    .carrito-item { padding-bottom: 12px; }
+    .carrito-item-cant { gap: 10px; }
+    .carrito-item-cant button { width: 34px; height: 34px; font-size: 17px; }
+    .carrito-enviar { padding: 15px; font-size: 15px; }
+    .carrito-vaciar { padding: 8px; }
 }
 
 /* --- Footer --- */
