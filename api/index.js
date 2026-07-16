@@ -338,18 +338,18 @@ async function migrarArchivos() {
 async function initDB() {
     try {
         // Fast path: si el último cambio de esquema ya está aplicado (columna
-        // items de encargos + tabla ml_tokens), no hay nada que crear ni migrar.
+        // medidas de proyectos + tabla ml_tokens), no hay nada que crear ni migrar.
         // Evita ~25 round-trips a Postgres en cada cold start de la función.
         // OJO: al agregar una tabla o columna nueva, actualizar este chequeo
         // para que apunte al cambio más reciente.
         const { rows: schemaOk } = await sql`
             SELECT
                 EXISTS (SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'encargos' AND column_name = 'items') AS encargos_items,
+                        WHERE table_name = 'proyectos' AND column_name = 'medidas') AS proyectos_medidas,
                 EXISTS (SELECT 1 FROM information_schema.tables
                         WHERE table_name = 'ml_tokens') AS ml_tokens
         `;
-        if (schemaOk[0].encargos_items && schemaOk[0].ml_tokens) return;
+        if (schemaOk[0].proyectos_medidas && schemaOk[0].ml_tokens) return;
 
         await sql`
             CREATE TABLE IF NOT EXISTS proyectos (
