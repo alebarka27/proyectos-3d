@@ -384,6 +384,8 @@ async function initDB() {
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS filamento TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS colores_usados TEXT DEFAULT '';`;
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS notas_impresion TEXT DEFAULT '';`;
+        // Medidas de la pieza (texto libre: "12 x 8 x 20 cm", diametro, etc.)
+        await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS medidas TEXT DEFAULT '';`;
         // Desglose de la calculadora (JSON {gramos, horas, extras}) para poder
         // recalcular el costo cuando cambia el precio del filamento
         await sql`ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS calc_desglose TEXT DEFAULT '';`;
@@ -510,14 +512,14 @@ app.get('/api/proyectos', async (req, res) => {
 app.post('/api/proyectos', async (req, res) => {
     try {
         const id = Date.now().toString();
-        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos, filamento, coloresUsados, notasImpresion, calcDesglose } = req.body;
+        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos, filamento, coloresUsados, notasImpresion, medidas, calcDesglose } = req.body;
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, filamento, colores_usados, notas_impresion, calc_desglose)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, filamento, colores_usados, notas_impresion, medidas, calc_desglose)
             VALUES (${id}, ${(nombre || '').trim()}, ${(codigo || '').trim()}, ${(categoria || '').trim()},
                     ${parseFloat(costo) || 0}, ${parseFloat(precioVenta) || 0}, ${parseInt(vendidos) || 0},
                     ${fotos || ''}, ${estado || 'Planificado'}, ${fecha}, ${!!publicarEshop}, ${parseInt(cantidad) || 0}, ${mlId || ''}, ${descripcion || ''}, ${!!destacado}, ${normalizarArchivos(archivos)},
-                    ${(filamento || '').trim()}, ${(coloresUsados || '').trim()}, ${notasImpresion || ''}, ${calcDesglose || ''})
+                    ${(filamento || '').trim()}, ${(coloresUsados || '').trim()}, ${notasImpresion || ''}, ${(medidas || '').trim()}, ${calcDesglose || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -535,11 +537,11 @@ app.post('/api/proyectos/:id/duplicar', async (req, res) => {
         const id = Date.now().toString();
         const fecha = new Date().toISOString().split('T')[0];
         await sql`
-            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, colores, colorfotos, filamento, colores_usados, notas_impresion, calc_desglose)
+            INSERT INTO proyectos (id, nombre, codigo, categoria, costo, precioventa, vendidos, fotos, estado, fecha, publicareshop, cantidad, ml_id, descripcion, destacado, archivos, colores, colorfotos, filamento, colores_usados, notas_impresion, medidas, calc_desglose)
             VALUES (${id}, ${(o.nombre || '') + ' (copia)'}, ${o.codigo || ''}, ${o.categoria || ''},
                     ${o.costo || 0}, ${o.precioventa || 0}, 0, ${o.fotos || ''}, ${o.estado || 'Planificado'}, ${fecha},
                     false, ${o.cantidad || 0}, '', ${o.descripcion || ''}, false, ${o.archivos || ''}, ${o.colores || ''}, ${o.colorfotos || ''},
-                    ${o.filamento || ''}, ${o.colores_usados || ''}, ${o.notas_impresion || ''}, ${o.calc_desglose || ''})
+                    ${o.filamento || ''}, ${o.colores_usados || ''}, ${o.notas_impresion || ''}, ${o.medidas || ''}, ${o.calc_desglose || ''})
         `;
         const { rows } = await sql`SELECT * FROM proyectos WHERE id = ${id}`;
         res.json(rows[0]);
@@ -575,7 +577,7 @@ app.post('/api/proyectos/bulk', async (req, res) => {
 
 app.put('/api/proyectos/:id', async (req, res) => {
     try {
-        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos, filamento, coloresUsados, notasImpresion, calcDesglose } = req.body;
+        const { nombre, codigo, categoria, costo, precioVenta, vendidos, fotos, estado, publicarEshop, cantidad, mlId, descripcion, destacado, archivos, filamento, coloresUsados, notasImpresion, medidas, calcDesglose } = req.body;
         // Campos que el body puede no traer: si vienen undefined se conserva
         // lo guardado (COALESCE con null)
         const archivosNuevos = archivos === undefined ? null : normalizarArchivos(archivos);
@@ -592,6 +594,7 @@ app.put('/api/proyectos/:id', async (req, res) => {
                 filamento=COALESCE(${keep(filamento)}, filamento),
                 colores_usados=COALESCE(${keep(coloresUsados)}, colores_usados),
                 notas_impresion=COALESCE(${keep(notasImpresion)}, notas_impresion),
+                medidas=COALESCE(${keep(medidas)}, medidas),
                 calc_desglose=COALESCE(${keep(calcDesglose)}, calc_desglose)
             WHERE id=${req.params.id}
         `;

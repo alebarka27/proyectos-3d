@@ -27,7 +27,7 @@ html, body { height: 100%; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
-    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
     font-size: 14px;
@@ -35,6 +35,9 @@ body {
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
 }
+
+/* Táctil: sin flash gris al tocar y sin delay de doble-tap en iOS/Android */
+a, button, select, input, textarea, .tab, .carpeta { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -159,6 +162,8 @@ h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 
 @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-in { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+/* En móvil los modales entran desde abajo, como una hoja de app */
+@keyframes sheet-in { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
 
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: overlay-in .15s ease-out; }
 .overlay.hidden { display: none; }
@@ -352,26 +357,6 @@ td a:hover { text-decoration: underline; }
 .btn-ml:hover { background: #e8e8e8; }
 .btn-ml:active { transform: scale(.98); }
 
-.btn-vender {
-    width: 100%;
-    margin-top: 6px;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 12.5px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: all .15s, transform .08s;
-}
-.btn-vender:hover { border-color: var(--success); color: var(--success); background: rgba(74, 222, 128, 0.06); }
-.btn-vender:active { transform: scale(.97); }
-
 .link-ml { color: var(--info); text-decoration: none; font-weight: 500; font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; }
 .link-ml:hover { text-decoration: underline; }
 
@@ -505,34 +490,7 @@ td a:hover { text-decoration: underline; }
 
 /* ===== Home / Banner ===== */
 
-.home-hero {
-    position: relative;
-    width: 100%;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    margin-bottom: 40px;
-    background: linear-gradient(150deg, #181818 0%, #0a0a0a 60%);
-    border: 1px solid var(--border);
-    min-height: 340px;
-    display: flex;
-    align-items: center;
-}
-.home-hero-bg {
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(ellipse 70% 90% at 75% 30%, rgba(255, 255, 255, 0.10) 0%, transparent 55%),
-        radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0);
-    background-size: 100% 100%, 22px 22px;
-    mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
-}
-.home-hero-content {
-    position: relative;
-    z-index: 1;
-    padding: clamp(32px, 6vw, 60px);
-    max-width: 640px;
-}
+/* El eyebrow lo usa la tienda pública (eshop.html) */
 .home-hero-eyebrow {
     display: inline-flex;
     align-items: center;
@@ -550,34 +508,6 @@ td a:hover { text-decoration: underline; }
     height: 1px;
     background: var(--border-strong);
 }
-.home-hero-content h1 {
-    font-size: clamp(30px, 5.5vw, 46px);
-    font-weight: 700;
-    letter-spacing: -1.2px;
-    margin-bottom: 14px;
-    line-height: 1.05;
-    text-wrap: balance;
-}
-.home-hero-content p {
-    color: var(--text-dim);
-    font-size: clamp(15px, 2vw, 17px);
-    margin-bottom: 28px;
-    line-height: 1.6;
-    max-width: 460px;
-    text-wrap: pretty;
-}
-.home-hero-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.home-hero-content .btn-primary,
-.home-hero-content .btn-secondary {
-    padding: 13px 28px;
-    font-size: 15px;
-    border-radius: var(--radius-md);
-}
-
 .home-section-title {
     display: flex;
     align-items: center;
@@ -675,62 +605,6 @@ td a:hover { text-decoration: underline; }
 }
 .search-bar button:hover {
     background: var(--accent-hover);
-}
-
-/* ===== Search suggestions dropdown ===== */
-
-.search-suggestions {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    max-height: 360px;
-    overflow-y: auto;
-    z-index: 100;
-    box-shadow: var(--shadow);
-}
-.search-suggestion-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    cursor: pointer;
-    transition: background .1s;
-    text-decoration: none;
-    color: var(--text);
-}
-.search-suggestion-item:hover,
-.search-suggestion-item.suggestion-active {
-    background: var(--surface-2);
-}
-.search-suggestion-item.suggestion-active {
-    background: var(--border);
-    outline: 1px solid var(--border-strong);
-}
-.search-suggestion-item img {
-    width: 36px;
-    height: 36px;
-    object-fit: cover;
-    border-radius: var(--radius-sm);
-    flex-shrink: 0;
-}
-.search-suggestion-info {
-    flex: 1;
-    min-width: 0;
-}
-.search-suggestion-info .name {
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.search-suggestion-info .price {
-    font-size: 12px;
-    color: var(--text-dim);
 }
 
 /* ===== Product Detail Page ===== */
@@ -1486,8 +1360,10 @@ td a:hover { text-decoration: underline; }
         scrollbar-width: none;
     }
     .top-bar .tabs::-webkit-scrollbar { display: none; }
-    .tab { flex: 1 1 0; min-width: 54px; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+    .tab { flex: 1 1 0; min-width: 54px; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 10px; font-weight: 500; white-space: nowrap; position: relative; }
     .tab .icon { width: 19px; height: 19px; }
+    /* El badge de encargos flota sobre el ícono en la barra inferior */
+    .tab .tab-badge { position: absolute; top: 0; right: calc(50% - 22px); }
     .top-bar { margin-bottom: 14px; }
     /* "Nuevo Proyecto" a lo ancho (los tabs ya no están en la fila) */
     .top-bar > .btn-primary { width: 100%; padding: 12px; }
@@ -1517,6 +1393,12 @@ td a:hover { text-decoration: underline; }
     .enc-card-acciones { gap: 8px; }
     .enc-card-acciones .btn-sm { flex: 1 1 auto; }
 
+    /* Form de encargo: el agregador de items en filas cómodas */
+    #encargoForm .enc-item-add select { flex: 1 1 100%; min-width: 0; }
+    #encargoForm #encItemNombre { flex: 1 1 100%; min-width: 0; }
+    #encargoForm #encItemCant { flex: 1 1 64px; }
+    #encargoForm #encItemPrecio { flex: 2 1 100px; }
+
     .calc-form { padding: 18px 14px; }
     .calc-precio-sugerencias { flex-wrap: wrap; }
 
@@ -1525,9 +1407,22 @@ td a:hover { text-decoration: underline; }
     .stat-card { padding: 14px 16px; }
     .stat-value { font-size: 20px; }
 
-    /* Modales casi a pantalla completa */
-    .overlay { padding: 10px; }
-    .modal { width: 100%; padding: 22px 16px; max-height: calc(100dvh - 20px); }
+    /* Modales como hoja inferior (bottom sheet), más alcanzables con el pulgar */
+    .overlay { align-items: flex-end; padding: 0; }
+    .modal {
+        width: 100%;
+        max-width: none;
+        padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+        max-height: 92dvh;
+        border-radius: 18px 18px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        overscroll-behavior: contain;
+        animation: sheet-in .25s cubic-bezier(.2, .8, .2, 1);
+    }
+    /* Botones de acción de formularios a lo ancho, con buena área táctil */
+    .form-actions > * { flex: 1; padding: 12px; }
 
     /* Toasts ocupan el ancho disponible; en el admin, arriba de la barra inferior */
     .toast-container { left: 12px; right: 12px; max-width: none; bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -1570,22 +1465,33 @@ td a:hover { text-decoration: underline; }
     td[data-label="Acciones"] { justify-content: flex-end; }
     td[data-label="Acciones"]::before { display: none; }
 
-    /* Home mobile */
-    .home-hero-content { padding: 32px 24px; }
-    .home-hero-content h1 { font-size: 24px; }
-    .home-hero-content p { font-size: 14px; }
-
     /* Product detail mobile */
     .producto-layout { grid-template-columns: 1fr; gap: 24px; }
     .producto-info h1 { font-size: 22px; }
     .producto-precio .monto { font-size: 34px; }
-    .producto-gallery-thumbs img { width: 48px; height: 48px; }
+    /* Miniaturas: fila deslizable, más grandes para el dedo */
+    .producto-gallery-thumbs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+    .producto-gallery-thumbs::-webkit-scrollbar { display: none; }
+    .producto-gallery-thumbs img { width: 56px; height: 56px; flex-shrink: 0; }
+    /* Swatches de color con área táctil cómoda */
+    .producto-colores-row { gap: 12px; }
+    .producto-colores-row .swatch { width: 28px; height: 28px; }
+    .producto-back { padding: 6px 0; }
+
+    /* Nav pública: una sola fila, los links se deslizan si no entran */
+    .public-nav { flex-wrap: nowrap; }
+    .public-nav-brand { flex-shrink: 0; }
+    .public-nav-links { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .public-nav-links::-webkit-scrollbar { display: none; }
+    .public-nav-links a { white-space: nowrap; flex-shrink: 0; }
 
     /* Search */
     .search-bar { max-width: 100%; }
 
     /* FAQ */
     .faq-container h1 { font-size: 22px; }
+    /* Respuestas largas: en pantalla angosta el texto es más alto */
+    .faq-answer.open { max-height: 900px; }
 
     /* Whatsapp float */
     .whatsapp-float { width: 48px; height: 48px; bottom: calc(16px + env(safe-area-inset-bottom)); right: 16px; }
@@ -1597,8 +1503,6 @@ td a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 480px) {
-    .home-hero-content h1 { font-size: 20px; }
-    .home-hero-content { padding: 28px 20px; }
     .producto-cta-whatsapp { font-size: 15px; padding: 14px 18px; }
     .producto-cta-ml { font-size: 13px; padding: 10px 16px; }
     /* La nav queda en una fila compacta, sin apilarse */
@@ -1608,6 +1512,7 @@ td a:hover { text-decoration: underline; }
     .public-nav-links a { padding: 6px 9px; font-size: 12.5px; }
     .nosotros-card { padding: 20px; }
     .dashboard-grid { grid-template-columns: 1fr; }
+    .login-card { padding: 32px 22px; }
 }
 
 /* --- Toolbar de la tabla de proyectos --- */
@@ -1645,6 +1550,57 @@ td a:hover { text-decoration: underline; }
 #tabla th.th-sorted-desc::after { content: ' ▼'; font-size: 9px; color: var(--text); }
 
 .stock-pill { display: inline-block; min-width: 28px; text-align: center; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border); color: var(--text-dim); background: var(--surface-2); }
+
+/* Ajuste rápido de stock en la tabla (los +/- a los lados de la pill) */
+.stock-cell { display: inline-flex; align-items: center; gap: 4px; }
+.btn-stock {
+    width: 20px; height: 20px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all .12s;
+}
+.btn-stock:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
+.btn-stock:disabled { opacity: .3; cursor: default; }
+
+/* Badge de encargos activos en el tab (rojo si hay entregas vencidas) */
+.tab-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 17px; height: 17px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1;
+}
+.tab-badge-alerta { background: var(--danger); border-color: var(--danger); color: #1a0a0a; }
+
+/* Previsualización de fotos en el form de proyecto */
+.fotos-preview { display: flex; gap: 6px; flex-wrap: wrap; margin: -8px 0 14px; }
+.fotos-preview img {
+    width: 52px; height: 52px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+}
+.fotos-preview img.foto-rota { opacity: .35; border-color: var(--danger); }
+.foto-invalida {
+    display: inline-flex; align-items: center;
+    padding: 0 10px; height: 52px;
+    border: 1px dashed var(--danger);
+    border-radius: var(--radius-sm);
+    color: var(--danger);
+    font-size: 11px;
+}
 .stock-pill-bajo { background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.35); color: var(--warning); }
 .stock-pill-agotado { background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.35); color: var(--danger); }
 
@@ -1681,7 +1637,7 @@ td[data-label="Acciones"] { white-space: nowrap; }
 /* --- Tabla de proyectos: legibilidad --- */
 
 /* El contenedor scrollea horizontal en vez de aplastar las 13 columnas */
-.tabla-scroll { overflow-x: auto; margin-top: 16px; }
+.tabla-scroll { overflow-x: auto; margin-top: 16px; -webkit-overflow-scrolling: touch; }
 .tabla-scroll table { margin-top: 0; }
 
 @media (min-width: 769px) {
@@ -1755,7 +1711,8 @@ td[data-label="Acciones"] { white-space: nowrap; }
     .arch-add { flex-direction: column; }
     .arch-add input { min-width: 0; }
     .det-header, .det-body, .det-archivos, .det-ficha { padding-left: 16px; padding-right: 16px; }
-    .det-actions { padding: 14px 16px 18px; }
+    /* El detalle es un modal con padding:0: el safe-area va en la última fila */
+    .det-actions { padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
     .det-actions > * { flex: 1; }
 }
 
@@ -1772,6 +1729,11 @@ td[data-label="Acciones"] { white-space: nowrap; }
 .calc-extra-add #extraNombre { flex: 1.6; }
 .calc-extra-add #extraCosto { flex: 1; }
 .calc-extra-add .btn-sm { flex-shrink: 0; }
+
+/* Partes sumadas: cálculos parciales que se acumulan en el total */
+.calc-partes .calc-extra-add #parteNombre { flex: 1; }
+.calc-parte-detalle { font-size: 11.5px; color: var(--text-faint); margin-left: 6px; }
+.calc-partes .muted { margin-top: 10px; font-size: 12px; }
 
 /* El costo total ocupa el ancho completo de la grilla de resultados */
 .calc-resultado .stat-total { grid-column: 1 / -1; }
@@ -1802,6 +1764,15 @@ td[data-label="Acciones"] { white-space: nowrap; }
 .det-ficha .det-desc { margin-top: 14px; }
 .ficha-colores-txt { font-size: 12.5px; color: var(--text-dim); }
 .det-ficha .color-swatches { display: inline-flex; margin-right: 8px; vertical-align: middle; }
+
+/* Edición inline de la ficha (medidas, filamento, colores, detalles) */
+.det-ficha h3 .ficha-edit-btn { margin-left: auto; font-weight: 500; }
+.ficha-edit { display: flex; flex-wrap: wrap; gap: 12px; }
+.ficha-edit label { display: block; flex: 1 1 100%; font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+.ficha-edit label.field-half { flex: 1 1 calc(50% - 6px); min-width: 180px; }
+.ficha-edit input, .ficha-edit textarea { width: 100%; margin-top: 6px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13.5px; color: var(--text); font-family: inherit; }
+.ficha-edit input:focus, .ficha-edit textarea:focus { outline: none; border-color: var(--border-strong); }
+.ficha-edit-btns { display: flex; gap: 10px; flex: 1 1 100%; }
 
 /* --- Encargos --- */
 
@@ -1934,6 +1905,15 @@ td[data-label="Acciones"] { white-space: nowrap; }
     .swatch { width: 12px; height: 12px; }
     /* Los botones apilados: lado a lado no entra el texto en media pantalla */
     .product-botones { flex-direction: column; gap: 6px; }
-    .btn-whatsapp, .btn-ml { padding: 9px 8px; font-size: 12.5px; }
-    .btn-add-carrito { font-size: 12px; padding: 8px; }
+    .btn-whatsapp, .btn-ml { padding: 11px 8px; font-size: 12.5px; }
+    .btn-add-carrito { font-size: 12px; padding: 10px 8px; }
+}
+
+/* --- Pulido tipográfico: Inter pide tracking apretado en títulos y números grandes --- */
+h1, h2, h3,
+.view-heading,
+.dash-card-value,
+.stat-value,
+.sidebar-brand {
+    letter-spacing: -0.02em;
 }

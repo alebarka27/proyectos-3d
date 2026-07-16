@@ -21,7 +21,6 @@ const API_CAT = '/api/categorias';
 let catActual = '';
 let todosProyectos = [];
 let catsGuardadas = [];
-let authed = false;
 
 async function apiFetch(url, options) {
     const res = await fetch(url, options);
@@ -38,31 +37,29 @@ async function logout() {
 }
 
 async function cargar() {
+    // El servidor ya redirige a login si no hay sesión; esto cubre el caso
+    // de una sesión que venció con el panel abierto.
     const resMe = await fetch('/api/me');
     const me = await resMe.json();
-    authed = me.authed;
+    if (!me.authed) { window.location.href = '/login.html'; return; }
 
-    document.querySelectorAll('.tab-auth').forEach(t => t.classList.toggle('hidden', !authed));
-    document.querySelectorAll('.sidebar-auth').forEach(el => el.classList.toggle('hidden', !authed));
-    document.getElementById('btnIrTiendaSidebar').classList.toggle('hidden', !authed);
-    document.getElementById('btnLogin').classList.toggle('hidden', authed);
-    document.getElementById('btnLogout').classList.toggle('hidden', !authed);
-
-    if (authed) {
-        const [resP, resC, resV, resE] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA), apiFetch(API_ENC)]);
-        todosProyectos = await resP.json();
-        catsGuardadas = await resC.json();
-        todasLasVentas = await resV.json();
-        todosEncargos = await resE.json();
-        renderSidebar();
-        renderTabla();
-        checkMLStatus();
-        if (detalleId) renderDetalle();
-    }
+    const [resP, resC, resV, resE] = await Promise.all([apiFetch(API_PROY), apiFetch(API_CAT), apiFetch(API_VTA), apiFetch(API_ENC)]);
+    todosProyectos = await resP.json();
+    catsGuardadas = await resC.json();
+    todasLasVentas = await resV.json();
+    todosEncargos = await resE.json();
+    renderSidebar();
+    renderTabla();
+    checkMLStatus();
+    if (detalleId) renderDetalle();
+    actualizarBadgeEncargos();
 
     // Tras una acción (guardar, vender, etc.) se recarga quedándose en la vista
-    // actual; solo la primera carga elige la vista inicial.
-    cambiarVista(vistaActual || (authed ? 'dashboard' : 'tienda'));
+    // actual. La primera carga toma la vista del hash de la URL (#proyectos,
+    // #ventas...) para que recargar o compartir el link mantenga la pestaña.
+    let inicial = location.hash.slice(1);
+    if (!VISTAS_VALIDAS.includes(inicial)) inicial = 'dashboard';
+    cambiarVista(vistaActual || inicial);
 }
 
 function renderSidebar() {
@@ -90,204 +87,7 @@ function ganancia(p) {
     return (venta - costo) * cant;
 }
 
-/* extraerMLId, urlML y formatearPrecio viven en utils.js (cargado antes). */
-
-function skeletonCards(n) {
-    return Array(n).fill(`
-        <div class="skeleton-card">
-            <div class="skeleton-img"></div>
-            <div class="skeleton-body">
-                <div class="skeleton-line w-40"></div>
-                <div class="skeleton-line w-60"></div>
-                <div class="skeleton-line h-lg"></div>
-            </div>
-        </div>`).join('');
-}
-
-// Muestra u oculta el contenido propio de la home (hero + categorias + "Más
-// vendidos"). La barra de busqueda queda SIEMPRE visible, fuera de estos bloques.
-function mostrarContenidoHome(visible) {
-    document.getElementById('tiendaHero')?.classList.toggle('hidden', !visible);
-    document.getElementById('tiendaHome')?.classList.toggle('hidden', !visible);
-}
-
-async function renderTienda() {
-    if (busquedaAbortController) busquedaAbortController.abort();
-    clearTimeout(busquedaTimeout);
-    const estado = document.getElementById('tiendaEstado');
-    estado.classList.add('hidden');
-    const searchInput = document.getElementById('tiendaSearch');
-    if (searchInput) searchInput.value = '';
-    await renderHome();
-}
-
-async function renderHome() {
-    mostrarContenidoHome(true);
-    renderCategoriasTienda();
-
-    const grid = document.getElementById('tiendaGrid');
-    grid.innerHTML = skeletonCards(4);
-
-    try {
-        const res = await fetch('/api/destacados');
-        const destacados = await res.json();
-        if (!destacados.length) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    ${icon('inbox', 'icon-lg')}
-                    <p class="empty-state-title">Todavía no hay productos</p>
-                    <p class="empty-state-text">Pronto vamos a sumar diseños al catálogo.</p>
-                </div>`;
-            return;
-        }
-        grid.innerHTML = destacados.map(p => renderProductCard(p)).join('');
-    } catch {
-        grid.innerHTML = `
-            <div class="empty-state">
-                ${icon('warning', 'icon-lg')}
-                <p class="empty-state-title">No se pudo cargar la tienda</p>
-                <p class="empty-state-text">Recargá la página en unos segundos.</p>
-            </div>`;
-    }
-}
-
-async function renderCategoriasTienda() {
-    const container = document.getElementById('tiendaCategorias');
-    const res = await fetch('/api/eshop');
-    const prods = await res.json();
-    const cats = [...new Set(prods.map(p => p.categoria).filter(Boolean))].sort();
-    if (!cats.length) { container.innerHTML = ''; return; }
-    container.innerHTML = cats.map(c =>
-        `<button class="home-cat-btn" onclick="filtrarCatTienda('${escapeHTML(c)}')">${escapeHTML(c)}</button>`
-    ).join('');
-}
-
-async function filtrarCatTienda(cat) {
-    if (busquedaAbortController) busquedaAbortController.abort();
-    clearTimeout(busquedaTimeout);
-    mostrarContenidoHome(false);
-    const searchInput = document.getElementById('tiendaSearch');
-    if (searchInput) searchInput.value = '';
-    const estado = document.getElementById('tiendaEstado');
-    const grid = document.getElementById('tiendaGrid');
-    grid.innerHTML = '<div class="loading-spinner">Cargando...</div>';
-    try {
-        const res = await fetch(`/api/eshop?categoria=${encodeURIComponent(cat)}`);
-        const productos = await res.json();
-        if (!productos.length) {
-            estado.textContent = 'No hay productos en esta categoría.';
-            estado.classList.remove('hidden');
-            grid.innerHTML = '';
-            return;
-        }
-        grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
-        estado.classList.add('hidden');
-    } catch {
-        grid.innerHTML = '';
-        estado.textContent = 'Error al cargar.';
-        estado.classList.remove('hidden');
-    }
-}
-
-/* --- Busqueda unificada (sugerencias + grilla) --- */
-
-let busquedaTimeout = null;
-let busquedaAbortController = null;
-
-function manejarBusqueda() {
-    const q = document.getElementById('tiendaSearch').value.trim();
-    const grid = document.getElementById('tiendaGrid');
-    const estado = document.getElementById('tiendaEstado');
-
-    clearTimeout(busquedaTimeout);
-
-    // Sin texto: volver a la home (destacados + categorias)
-    if (!q) {
-        if (busquedaAbortController) busquedaAbortController.abort();
-        estado.classList.add('hidden');
-        renderHome();
-        return;
-    }
-
-    // Con texto: ocultar solo el contenido de home, la barra queda visible
-    mostrarContenidoHome(false);
-    estado.classList.add('hidden');
-    grid.innerHTML = '<div class="loading-spinner">Buscando...</div>';
-
-    busquedaTimeout = setTimeout(() => ejecutarBusqueda(q), 200);
-}
-
-async function ejecutarBusqueda(q) {
-    if (busquedaAbortController) busquedaAbortController.abort();
-    busquedaAbortController = new AbortController();
-
-    const grid = document.getElementById('tiendaGrid');
-
-    try {
-        const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`, {
-            signal: busquedaAbortController.signal,
-        });
-        const productos = await res.json();
-
-        if (!productos.length) {
-            grid.innerHTML = `<div class="empty-state">
-                ${icon('inbox', 'icon-lg')}
-                <p class="empty-state-title">Sin resultados</p>
-                <p class="empty-state-text">No encontramos "${escapeHTML(q)}".</p>
-            </div>`;
-            return;
-        }
-        grid.innerHTML = productos.map(p => renderProductCard(p)).join('');
-    } catch (err) {
-        if (err.name === 'AbortError') return;
-        grid.innerHTML = `<div class="empty-state">
-            ${icon('warning', 'icon-lg')}
-            <p class="empty-state-title">Error al buscar</p>
-            <p class="empty-state-text">Intentá de nuevo en un momento.</p>
-        </div>`;
-    }
-}
-
-function renderProductCard(p) {
-    const foto = mlGridImage((p.fotos || '').split(',')[0]?.trim());
-    const img = foto
-        ? `<img src="${escapeHTML(safeHref(foto))}" alt="${escapeHTML(p.nombre)}" loading="lazy" decoding="async">`
-        : `<div class="product-img-placeholder">${icon('printer', 'icon-lg')}</div>`;
-    const sinStock = !p.cantidad || p.cantidad <= 0;
-    const precio = parseFloat(p.precioventa) || 0;
-    const waUrl = whatsappHref(`Hola! Te escribo por "${p.nombre}" que vi en la tienda.`);
-    const mlUrl = urlML(p.ml_id);
-    return `
-        <article class="product-card">
-            <a href="/producto.html?id=${encodeURIComponent(p.id)}" style="display:contents;color:inherit;text-decoration:none;">
-                <div class="product-img">${img}</div>
-                <div class="product-body">
-                    ${p.categoria ? `<span class="cat-badge">${escapeHTML(p.categoria)}</span>` : ''}
-                    <h3 class="product-title">${escapeHTML(p.nombre)}</h3>
-                    ${precio ? `
-                    <div class="precio-section">
-                        <span class="precio-simbolo">$</span>
-                        <span class="precio-monto">${formatearPrecio(precio)}</span>
-                    </div>` : ''}
-                    ${coloresChips(p.colores)}
-                    <div class="product-stock ${sinStock ? 'stock-agotado' : 'stock-disponible'}">
-                        ${sinStock ? 'Sin stock' : `${p.cantidad} disponible${p.cantidad !== 1 ? 's' : ''}`}
-                    </div>
-                </div>
-            </a>
-            <div class="product-body" style="padding-top:0;">
-                <div class="product-botones">
-                    <a class="btn-whatsapp ${sinStock ? 'btn-whatsapp-disabled' : ''}" ${sinStock ? '' : `href="${waUrl}" target="_blank" rel="noopener noreferrer"`}>
-                        ${icon('chat')} WhatsApp
-                    </a>
-                    ${mlUrl ? `<a class="btn-ml" href="${mlUrl}" target="_blank" rel="noopener noreferrer">${icon('cart')} ML</a>` : ''}
-                </div>
-                ${authed && !sinStock ? `<button class="btn-vender" onclick="marcarVendido('${p.id}')">${icon('check')} Marcar vendido</button>` : ''}
-            </div>
-        </article>`;
-}
-
-let tiendaTimeout = null;
+/* extraerMLId, urlML, formatearPrecio y skeletonCards viven en utils.js (cargado antes). */
 
 const ESTADOS_VALIDOS = ['Planificado', 'Imprimiendo', 'Terminado'];
 
@@ -400,7 +200,11 @@ function renderTabla() {
                 <td data-label="Costo">${costo ? '$'+formatearPrecio(costo) : '-'}</td>
                 <td data-label="Precio Vta">${pv ? '$'+formatearPrecio(pv) : '-'}</td>
                 <td data-label="Vend.">${vend || '-'}</td>
-                <td data-label="Stock">${stockPill(p)}</td>
+                <td data-label="Stock"><span class="stock-cell">
+                    <button class="btn-stock" title="Restar 1 de stock" onclick="ajustarStock('${p.id}', -1)" ${stock <= 0 ? 'disabled' : ''}>−</button>
+                    ${stockPill(p)}
+                    <button class="btn-stock" title="Sumar 1 de stock" onclick="ajustarStock('${p.id}', 1)">+</button>
+                </span></td>
                 <td data-label="Ganancia" class="${g > 0 ? 'text-verde' : g < 0 ? 'text-rojo' : ''}">${g ? '$'+formatearPrecio(g) : '-'}</td>
                 <td data-label="Estado"><span class="estado-badge estado-${estadoClase}">${escapeHTML(p.estado)}</span></td>
                 <td data-label="ML">${p.ml_id ? `<a href="${urlML(p.ml_id)}" target="_blank" rel="noopener noreferrer" class="link-ml">${icon('link-external')} ML</a>` : `<button class="btn-sm" onclick="abrirPublicarML('${p.id}')">${icon('box')} Publicar</button>`}</td>
@@ -416,6 +220,27 @@ function renderTabla() {
 
     const countEl = document.getElementById('proyCount');
     if (countEl) countEl.textContent = `${filtrados.length} de ${todosProyectos.length} proyectos`;
+}
+
+// Ajuste rápido de stock desde la tabla (reponer o descontar sin abrir el form).
+// Actualiza el proyecto en memoria con la respuesta, sin recargar todo.
+async function ajustarStock(id, delta) {
+    const p = todosProyectos.find(x => x.id === id);
+    if (!p) return;
+    const actual = parseInt(p.cantidad) || 0;
+    const nuevo = Math.max(0, actual + delta);
+    if (nuevo === actual) return;
+    const res = await apiFetch(`${API_PROY}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...bodyDesdeProyecto(p), cantidad: nuevo }),
+    });
+    if (!res.ok) { showToast('No se pudo actualizar el stock', 'error'); return; }
+    const actualizado = await res.json();
+    const i = todosProyectos.findIndex(x => x.id === id);
+    if (i !== -1) todosProyectos[i] = actualizado;
+    renderTabla();
+    if (detalleId) renderDetalle();
 }
 
 async function venderRapido(id) {
@@ -442,13 +267,20 @@ function filtrar(cat) {
 
 /* --- Cola de impresión (proyectos como tablero por estado) --- */
 
-let modoProyectos = 'tabla';
+// El modo elegido (tabla o cola) se recuerda entre sesiones
+let modoProyectos = localStorage.getItem('modo-proyectos') === 'cola' ? 'cola' : 'tabla';
 
-function toggleModoProyectos() {
-    modoProyectos = modoProyectos === 'tabla' ? 'cola' : 'tabla';
+function sincronizarBotonModo() {
     const btn = document.getElementById('btnModoProyectos');
     btn.textContent = modoProyectos === 'cola' ? 'Ver tabla' : 'Cola de impresión';
     btn.classList.toggle('btn-eshop-on', modoProyectos === 'cola');
+}
+sincronizarBotonModo();
+
+function toggleModoProyectos() {
+    modoProyectos = modoProyectos === 'tabla' ? 'cola' : 'tabla';
+    try { localStorage.setItem('modo-proyectos', modoProyectos); } catch { /* sin storage: no pasa nada */ }
+    sincronizarBotonModo();
     renderTabla();
 }
 
@@ -519,8 +351,29 @@ document.getElementById('btnNuevo').onclick = () => {
     document.getElementById('projectForm').reset();
     document.getElementById('editId').value = '';
     formCalcDesglose = null;
+    renderFotosPreview();
     document.getElementById('formOverlay').classList.remove('hidden');
 };
+
+/* Previsualización de las fotos del form: muestra las miniaturas mientras se
+   pegan las URLs, así una URL rota o mal separada se ve antes de guardar. */
+
+let fotosPreviewTimeout = null;
+
+function renderFotosPreview() {
+    const cont = document.getElementById('fotosPreview');
+    const urls = fotosArray(document.getElementById('fotos').value).slice(0, 12);
+    cont.classList.toggle('hidden', !urls.length);
+    cont.innerHTML = urls.map(u => /^https?:\/\//i.test(u)
+        ? `<img src="${escapeHTML(mlGridImage(u))}" alt="" loading="lazy" onerror="this.classList.add('foto-rota'); this.title='Esta URL no carga';">`
+        : `<span class="foto-invalida" title="${escapeHTML(u)}">URL inválida</span>`
+    ).join('');
+}
+
+document.getElementById('fotos').addEventListener('input', () => {
+    clearTimeout(fotosPreviewTimeout);
+    fotosPreviewTimeout = setTimeout(renderFotosPreview, 400);
+});
 
 document.getElementById('btnCancelar').onclick = () => {
     document.getElementById('formOverlay').classList.add('hidden');
@@ -543,6 +396,7 @@ document.getElementById('projectForm').onsubmit = async (e) => {
         descripcion: document.getElementById('descripcion').value,
         filamento: document.getElementById('filamento').value,
         coloresUsados: document.getElementById('coloresUsados').value,
+        medidas: document.getElementById('medidas').value,
         notasImpresion: document.getElementById('notasImpresion').value,
         destacado: document.getElementById('destacadoCheck').checked,
         publicarEshop: document.getElementById('publicarEshop').checked,
@@ -589,11 +443,13 @@ async function editar(id) {
     document.getElementById('descripcion').value = p.descripcion || '';
     document.getElementById('filamento').value = p.filamento || '';
     document.getElementById('coloresUsados').value = p.colores_usados || '';
+    document.getElementById('medidas').value = p.medidas || '';
     document.getElementById('notasImpresion').value = p.notas_impresion || '';
     document.getElementById('destacadoCheck').checked = !!p.destacado;
     document.getElementById('estado').value = p.estado || 'Planificado';
     document.getElementById('publicarEshop').checked = !!p.publicareshop;
     formCalcDesglose = null;
+    renderFotosPreview();
     document.getElementById('formOverlay').classList.remove('hidden');
 }
 
@@ -605,17 +461,16 @@ async function eliminar(id) {
 }
 
 async function toggleEshop(id, actual) {
-    await apiFetch(`${API_PROY}/${id}/eshop`, {
+    const res = await apiFetch(`${API_PROY}/${id}/eshop`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ publicarEshop: !actual })
     });
-    cargar();
-}
-
-async function marcarVendido(id) {
-    await apiFetch(`${API_PROY}/${id}/vender`, { method: 'PATCH' });
-    cargar();
+    if (!res.ok) { showToast('No se pudo cambiar la publicación', 'error'); return; }
+    const r = await res.json();
+    const p = todosProyectos.find(x => x.id === id);
+    if (p) p.publicareshop = r.publicareshop;
+    cambiarVista(vistaActual); // re-renderiza la vista actual (tabla o dashboard) con el dato nuevo
 }
 
 /* --- Detalle de proyecto (se abre al tocar una fila) ---
@@ -641,18 +496,20 @@ function bodyDesdeProyecto(p) {
         estado: p.estado, descripcion: p.descripcion,
         destacado: !!p.destacado, publicarEshop: !!p.publicareshop,
         filamento: p.filamento || '', coloresUsados: p.colores_usados || '',
-        notasImpresion: p.notas_impresion || '',
+        medidas: p.medidas || '', notasImpresion: p.notas_impresion || '',
     };
 }
 
 function abrirDetalle(id) {
     detalleId = id;
+    fichaEditando = false;
     if (!renderDetalle()) return;
     document.getElementById('detalleOverlay').classList.remove('hidden');
 }
 
 function cerrarDetalle() {
     detalleId = null;
+    fichaEditando = false;
     document.getElementById('detalleOverlay').classList.add('hidden');
 }
 
@@ -732,15 +589,34 @@ function renderDetalle() {
     return true;
 }
 
-// Seccion "Ficha de impresión" del detalle: filamento, colores usados,
+// Seccion "Ficha de impresión" del detalle: filamento, colores usados, medidas,
 // notas privadas y el desglose guardado de la calculadora (si existe).
+// Se puede editar acá mismo (botón "Editar ficha") sin abrir el form completo.
+let fichaEditando = false;
+
 function fichaImpresionHTML(p) {
     let desglose = null;
     try { desglose = p.calc_desglose ? JSON.parse(p.calc_desglose) : null; } catch { desglose = null; }
-    const tieneAlgo = p.filamento || p.colores_usados || p.notas_impresion || desglose;
+    const tieneAlgo = p.filamento || p.colores_usados || p.medidas || p.notas_impresion || desglose;
+
+    if (fichaEditando) return `
+        <div class="det-ficha">
+            <h3>${icon('sliders')} Ficha de impresión</h3>
+            <div class="ficha-edit">
+                <label>Medidas <input type="text" id="fichaMedidas" value="${escapeHTML(p.medidas || '')}" placeholder="Ej: 12 × 8 × 20 cm, Ø 15 cm..."></label>
+                <label class="field-half">Marca de filamento <input type="text" id="fichaFilamento" value="${escapeHTML(p.filamento || '')}" placeholder="Ej: PLA Grilon3"></label>
+                <label class="field-half">Colores usados <input type="text" id="fichaColores" value="${escapeHTML(p.colores_usados || '')}" placeholder="Ej: Negro, Rojo"></label>
+                <label>Detalles (solo para vos) <textarea id="fichaNotas" rows="3" class="field-textarea" placeholder="Temperatura, soportes, altura de capa, orientación en la cama...">${escapeHTML(p.notas_impresion || '')}</textarea></label>
+                <div class="ficha-edit-btns">
+                    <button class="btn-primary" onclick="guardarFicha()">Guardar ficha</button>
+                    <button class="btn-secondary" onclick="fichaEditando = false; renderDetalle()">Cancelar</button>
+                </div>
+            </div>
+        </div>`;
 
     const dato = (label, valor) => `<div class="det-item"><span class="det-label">${label}</span><span class="det-value">${valor}</span></div>`;
     let items = '';
+    if (p.medidas) items += dato('Medidas', escapeHTML(p.medidas));
     if (p.filamento) items += dato('Filamento', escapeHTML(p.filamento));
     if (p.colores_usados) items += dato('Colores usados', `${coloresChips(p.colores_usados)}<span class="ficha-colores-txt">${escapeHTML(p.colores_usados)}</span>`);
     if (desglose) {
@@ -754,12 +630,44 @@ function fichaImpresionHTML(p) {
 
     return `
         <div class="det-ficha">
-            <h3>${icon('sliders')} Ficha de impresión</h3>
+            <h3>${icon('sliders')} Ficha de impresión
+                <button class="btn-sm ficha-edit-btn" onclick="fichaEditando = true; renderDetalle()">${icon('pencil')} ${tieneAlgo ? 'Editar' : 'Agregar medidas y detalles'}</button>
+            </h3>
             ${tieneAlgo ? `
                 ${items ? `<div class="det-grid">${items}</div>` : ''}
                 ${p.notas_impresion ? `<div class="det-desc"><span class="det-label">Detalles</span><p>${escapeHTML(p.notas_impresion).replace(/\n/g, '<br>')}</p></div>` : ''}`
-            : `<p class="muted">Sin datos de impresión todavía — cargá filamento, colores y detalles desde "Editar".</p>`}
+            : `<p class="muted">Sin datos todavía — cargá acá las medidas de la pieza, el filamento y los detalles de impresión.</p>`}
         </div>`;
+}
+
+// Guarda medidas, filamento, colores y detalles desde el detalle (PUT completo
+// con el resto de los campos tal como están).
+async function guardarFicha() {
+    const p = todosProyectos.find(x => x.id === detalleId);
+    if (!p) return;
+    const body = {
+        ...bodyDesdeProyecto(p),
+        medidas: document.getElementById('fichaMedidas').value.trim(),
+        filamento: document.getElementById('fichaFilamento').value.trim(),
+        coloresUsados: document.getElementById('fichaColores').value.trim(),
+        notasImpresion: document.getElementById('fichaNotas').value,
+    };
+    const res = await apiFetch(`${API_PROY}/${p.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'No se pudo guardar la ficha', 'error');
+        return;
+    }
+    const actualizado = await res.json();
+    const idx = todosProyectos.findIndex(x => x.id === p.id);
+    if (idx !== -1) todosProyectos[idx] = actualizado;
+    fichaEditando = false;
+    renderDetalle();
+    showToast('Ficha guardada', 'success');
 }
 
 function detalleCambiarFoto(el, src) {
@@ -829,8 +737,23 @@ document.getElementById('tbody').addEventListener('click', e => {
     if (tr) abrirDetalle(tr.dataset.id);
 });
 
+// Overlays que Escape puede cerrar (el que esté abierto)
+const OVERLAYS_CERRABLES = ['detalleOverlay', 'formOverlay', 'encargoOverlay', 'ventaOverlay', 'catOverlay', 'mlPublishOverlay', 'bulkOverlay'];
+
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && detalleId) cerrarDetalle();
+    if (e.key === 'Escape') {
+        if (detalleId) { cerrarDetalle(); return; }
+        const abierto = OVERLAYS_CERRABLES
+            .map(id => document.getElementById(id))
+            .find(el => el && !el.classList.contains('hidden'));
+        if (abierto) abierto.classList.add('hidden');
+        return;
+    }
+    // "/" enfoca la búsqueda de proyectos (si no estás escribiendo en un campo)
+    if (e.key === '/' && vistaActual === 'proyectos' && !e.target.closest('input, textarea, select')) {
+        e.preventDefault();
+        document.getElementById('proySearch')?.focus();
+    }
 });
 
 /* --- Publicar en ML / carga masiva --- */
@@ -1294,22 +1217,26 @@ function filtrarProyectos() {
 }
 
 let vistaActual = '';
+const VISTAS_VALIDAS = ['dashboard', 'proyectos', 'encargos', 'ventas', 'calculadora'];
 
 function cambiarVista(vista) {
     const repetida = vista === vistaActual;
     vistaActual = vista;
-    const etiquetas = { dashboard: 'Dashboard', tienda: 'Tienda', proyectos: 'Proyectos', encargos: 'Encargos', ventas: 'Ventas', calculadora: 'Calculadora' };
+    // Refleja la vista en la URL sin ensuciar el historial (permite recargar y volver a la misma pestaña)
+    if (location.hash.slice(1) !== vista) {
+        try { history.replaceState(null, '', '#' + vista); } catch { /* file:// u origen sin historial */ }
+    }
+    const etiquetas = { dashboard: 'Dashboard', proyectos: 'Proyectos', encargos: 'Encargos', ventas: 'Ventas', calculadora: 'Calculadora' };
     document.querySelectorAll('.tab').forEach(t => {
         t.classList.toggle('tab-activo', t.textContent.includes(etiquetas[vista]));
     });
-    const vistas = ['Dashboard', 'Tienda', 'Proyectos', 'Encargos', 'Ventas', 'Calculadora'];
+    const vistas = ['Dashboard', 'Proyectos', 'Encargos', 'Ventas', 'Calculadora'];
     vistas.forEach(v => {
         const el = document.getElementById('vista' + v);
         if (el) el.classList.toggle('hidden', v.toLowerCase() !== vista);
     });
     document.getElementById('btnNuevo').classList.toggle('hidden', vista !== 'proyectos');
     if (vista === 'dashboard') renderDashboard();
-    if (vista === 'tienda') renderTienda();
     if (vista === 'encargos') renderEncargos();
     if (vista === 'ventas') renderVentas();
     if (vista === 'calculadora') calcularPrecio();
@@ -1330,6 +1257,9 @@ function cambiarVista(vista) {
 let ultimoTotalCalculado = 0;
 let ultimoPrecioCalculadora = 0;
 let calcExtras = [];
+// Partes ya sumadas de una pieza de varias impresiones: cada una guarda sus
+// gramos, horas y extras crudos, y el costo se recalcula con la config actual.
+let calcPartes = [];
 
 // Los valores de configuración (material, kWh, desgaste) se recuerdan entre
 // sesiones para no tener que recargarlos cada vez.
@@ -1382,6 +1312,68 @@ function renderExtras() {
         </div>`).join('');
 }
 
+/* --- Partes: sumar cálculos parciales al total ---
+   Para piezas que se imprimen en varias tandas: se cargan los números de una
+   parte, se suma con "Sumar parte" (los campos quedan libres para la próxima)
+   y el total acumula todo. */
+
+// Costos de un conjunto gramos/horas/extras con la config actual de la calculadora.
+function costosCalculadora(gramos, horas, extras) {
+    const costoMaterial = parseFloat(document.getElementById('calcCostoMaterial').value) || 0;
+    const kwh = parseFloat(document.getElementById('calcKwh').value) || 0;
+    const desgastePorHora = parseFloat(document.getElementById('calcDesgaste').value) || 0;
+    return {
+        energia: (90 / 1000) * kwh * horas,
+        material: (costoMaterial / 1000) * gramos * 1.1,
+        desgaste: horas * desgastePorHora,
+        extras: extras.reduce((s, e) => s + e.costo, 0),
+    };
+}
+
+function agregarParte() {
+    const gramos = parseFloat(document.getElementById('calcGramos').value) || 0;
+    const horas = parseFloat(document.getElementById('calcHoras').value) || 0;
+    if (!gramos && !horas && !calcExtras.length) {
+        showToast('Cargá los números de esta parte (gramos, horas...) antes de sumarla', 'error');
+        return;
+    }
+    const nombreEl = document.getElementById('parteNombre');
+    calcPartes.push({
+        nombre: nombreEl.value.trim() || `Parte ${calcPartes.length + 1}`,
+        gramos, horas, extras: calcExtras,
+    });
+    // Se limpian los campos de la parte (no la config) para cargar la siguiente
+    calcExtras = [];
+    nombreEl.value = '';
+    document.getElementById('calcGramos').value = '';
+    document.getElementById('calcHoras').value = '';
+    renderExtras();
+    calcularPrecio();
+    document.getElementById('calcGramos').focus();
+}
+
+function quitarParte(i) {
+    calcPartes.splice(i, 1);
+    calcularPrecio();
+}
+
+function renderPartes() {
+    document.getElementById('calcPartesLista').innerHTML = calcPartes.map((p, i) => {
+        const c = costosCalculadora(p.gramos, p.horas, p.extras);
+        const detalle = [
+            p.gramos ? `${p.gramos} g` : '',
+            p.horas ? `${p.horas} h` : '',
+            p.extras.length ? `${p.extras.length} extra${p.extras.length > 1 ? 's' : ''}` : '',
+        ].filter(Boolean).join(' · ');
+        return `
+        <div class="calc-extra-item">
+            <span class="calc-extra-nombre">${escapeHTML(p.nombre)}${detalle ? ` <span class="calc-parte-detalle">${detalle}</span>` : ''}</span>
+            <span class="calc-extra-costo">$${formatearPrecio(c.energia + c.material + c.desgaste + c.extras)}</span>
+            <button type="button" class="btn-sm btn-peligro" title="Quitar parte" onclick="quitarParte(${i})">${icon('trash')}</button>
+        </div>`;
+    }).join('');
+}
+
 // Propone un precio a partir del costo total, redondeado a la centena
 // para que quede un número "de vidriera".
 function sugerirPrecio(mult) {
@@ -1391,18 +1383,23 @@ function sugerirPrecio(mult) {
 }
 
 function calcularPrecio() {
-    const costoMaterial = parseFloat(document.getElementById('calcCostoMaterial').value) || 0;
     const gramos = parseFloat(document.getElementById('calcGramos').value) || 0;
     const horas = parseFloat(document.getElementById('calcHoras').value) || 0;
-    const kwh = parseFloat(document.getElementById('calcKwh').value) || 0;
-    const desgastePorHora = parseFloat(document.getElementById('calcDesgaste').value) || 0;
 
-    const energia = (90 / 1000) * kwh * horas;
-    const material = (costoMaterial / 1000) * gramos * 1.1;
-    const desgaste = horas * desgastePorHora;
-    const extras = calcExtras.reduce((s, e) => s + e.costo, 0);
+    // Parte que se está cargando + todas las partes ya sumadas, siempre con
+    // los precios actuales de material/energía/desgaste
+    const acum = costosCalculadora(gramos, horas, calcExtras);
+    for (const parte of calcPartes) {
+        const c = costosCalculadora(parte.gramos, parte.horas, parte.extras);
+        acum.energia += c.energia;
+        acum.material += c.material;
+        acum.desgaste += c.desgaste;
+        acum.extras += c.extras;
+    }
+    const { energia, material, desgaste, extras } = acum;
     const total = energia + material + desgaste + extras;
     ultimoTotalCalculado = total;
+    renderPartes(); // los subtotales de las partes dependen de la config actual
 
     document.getElementById('calc-energia').textContent = '$' + formatearPrecio(energia);
     document.getElementById('calc-material').textContent = '$' + formatearPrecio(material);
@@ -1441,11 +1438,18 @@ function usarComoCosto() {
     const marca = document.getElementById('calcMarca').value.trim();
     if (marca) document.getElementById('filamento').value = marca;
     // El proyecto guarda el desglose del cálculo para poder recalcular el
-    // costo más adelante cuando cambie el precio del filamento
+    // costo más adelante cuando cambie el precio del filamento. Si hay partes
+    // sumadas, el desglose junta los gramos/horas/extras de todas.
+    const red2 = n => Math.round(n * 100) / 100;
     formCalcDesglose = {
-        gramos: parseFloat(document.getElementById('calcGramos').value) || 0,
-        horas: parseFloat(document.getElementById('calcHoras').value) || 0,
-        extras: calcExtras.map(e => ({ nombre: e.nombre, costo: e.costo })),
+        gramos: red2((parseFloat(document.getElementById('calcGramos').value) || 0)
+            + calcPartes.reduce((s, p) => s + p.gramos, 0)),
+        horas: red2((parseFloat(document.getElementById('calcHoras').value) || 0)
+            + calcPartes.reduce((s, p) => s + p.horas, 0)),
+        extras: [
+            ...calcPartes.flatMap(p => p.extras.map(e => ({ nombre: `${p.nombre}: ${e.nombre}`, costo: e.costo }))),
+            ...calcExtras.map(e => ({ nombre: e.nombre, costo: e.costo })),
+        ],
     };
     cambiarVista('proyectos');
     document.getElementById('formOverlay').classList.remove('hidden');
@@ -1484,6 +1488,11 @@ async function recalcularCostos() {
     document.getElementById(id).addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); agregarExtra(); }
     });
+});
+
+// Enter en el nombre de la parte = sumarla
+document.getElementById('parteNombre').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); agregarParte(); }
 });
 
 cargarConfigCalculadora();
@@ -1595,7 +1604,22 @@ function waCliente(contacto) {
     return `https://wa.me/${digitos.startsWith('54') ? digitos : '549' + digitos}`;
 }
 
+// Badge en el tab Encargos: cuántos hay activos; rojo si alguno está vencido.
+// Así se ve de un vistazo si hay pedidos pendientes sin entrar a la vista.
+function actualizarBadgeEncargos() {
+    const el = document.getElementById('tabBadgeEncargos');
+    if (!el) return;
+    const activos = todosEncargos.filter(esEncargoActivo);
+    const hoy = new Date().toISOString().split('T')[0];
+    const vencidos = activos.filter(e => e.fecha_entrega && e.fecha_entrega < hoy).length;
+    el.classList.toggle('hidden', !activos.length);
+    el.classList.toggle('tab-badge-alerta', vencidos > 0);
+    el.textContent = activos.length;
+    el.title = vencidos ? `${vencidos} encargo${vencidos !== 1 ? 's' : ''} con la entrega vencida` : `${activos.length} encargos activos`;
+}
+
 function renderEncargos() {
+    actualizarBadgeEncargos();
     const activos = todosEncargos.filter(esEncargoActivo);
     const porCobrar = activos.reduce((s, e) => s + Math.max(0, (e.precio || 0) - (e.sena || 0)), 0);
     const senas = activos.reduce((s, e) => s + (e.sena || 0), 0);
